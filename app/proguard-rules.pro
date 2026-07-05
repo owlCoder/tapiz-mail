@@ -1,0 +1,4 @@
+-keep class rs.tapizlabs.boards.data.model.** { *; }
+-keepattributes *Annotation*
+-dontwarn okhttp3.**
+-dontwarn retrofit2.**

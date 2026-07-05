@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.TapizMail" parent="Theme.AppCompat.NoActionBar" />
+    <!-- Unified Tapiz splash (same recipe in LMS / Boards / Status): theme-aware
+         canvas + the app's primary logo glyph. -->
+    <style name="Theme.TapizMail.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.TapizMail</item>
+    </style>
+</resources>

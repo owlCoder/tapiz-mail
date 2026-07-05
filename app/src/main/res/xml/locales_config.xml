@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Exposes the app's supported languages in system Settings → App languages
+     (Android 13+). Must mirror the in-app language picker (SR/EN only). -->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="sr" />
+    <locale android:name="en" />
+</locale-config>

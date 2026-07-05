@@ -1,0 +1,105 @@
+package rs.tapizlabs.mail.ui.components
+
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.MarkEmailRead
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import rs.tapizlabs.mail.ui.theme.AppColors
+
+/**
+ * Tapiz brand loading spinner: a pulsing ring around the envelope glyph, instead of a
+ * bare Material [androidx.compose.material3.CircularProgressIndicator]. Same pulse
+ * recipe as tapiz-lms's `SessionLoadingScreen` (scale 1↔1.15, alpha 1↔0.35, 1800ms
+ * reverse loop) so the brand's loading feel is consistent across apps.
+ */
+@Composable
+fun MailPulseSpinner(modifier: Modifier = Modifier, size: Dp = 40.dp) {
+    val colors = AppColors
+    val transition = rememberInfiniteTransition(label = "mailPulse")
+    val pulseScale by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(tween(1800, easing = LinearEasing), RepeatMode.Reverse),
+        label = "pulseScale",
+    )
+    val pulseAlpha by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.35f,
+        animationSpec = infiniteRepeatable(tween(1800, easing = LinearEasing), RepeatMode.Reverse),
+        label = "pulseAlpha",
+    )
+
+    Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
+        Canvas(
+            modifier = Modifier
+                .size(size)
+                .scale(pulseScale),
+        ) {
+            drawCircle(color = colors.primary.copy(alpha = pulseAlpha), style = Stroke(width = 2.5.dp.toPx()))
+        }
+        Box(
+            modifier = Modifier
+                .size(size * 0.56f)
+                .background(colors.accentSoft, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.MarkEmailRead,
+                contentDescription = null,
+                tint = colors.primary,
+                modifier = Modifier.size(size * 0.32f),
+            )
+        }
+    }
+}
+
+/**
+ * Full-screen brand loading state — shown right after the native splash while
+ * [rs.tapizlabs.mail.ui.navigation.RootViewModel] resolves whether any account exists
+ * yet, and anywhere else a screen has no cached content at all to show. Mirrors
+ * tapiz-lms's `SessionLoadingScreen` so the handoff from the native cold-start splash
+ * reads as one continuous brand moment instead of a jump to a bare spinner.
+ */
+@Composable
+fun MailLoadingScreen(modifier: Modifier = Modifier, message: String? = null) {
+    val colors = AppColors
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(colors.canvasTop),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            MailPulseSpinner()
+            if (message != null) {
+                Spacer(Modifier.height(16.dp))
+                Text(text = message, style = MaterialTheme.typography.bodyMedium, color = colors.textMuted)
+            }
+        }
+    }
+}

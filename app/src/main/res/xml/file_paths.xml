@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider paths for attachment save/share/preview (downloads + compose picks). -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="attachments" path="attachments/" />
+    <external-cache-path name="external_attachments" path="attachments/" />
+</paths>
