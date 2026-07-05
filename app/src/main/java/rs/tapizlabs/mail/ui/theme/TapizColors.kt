@@ -8,8 +8,13 @@ data class TapizColors(
     val canvasTop: Color,
     val canvasBottom: Color,
     val card: Color,
+    val heroPanel: Color,
     val surfaceSolid: Color,
     val cardSubtle: Color,
+    /** Neutral (zero-chroma) input-field background — deliberately NOT `cardSubtle`, which
+     * carries a faint cool tint (`oklch(94% 0.02 265)`) that reads as an unintended accent
+     * wash when used as a large input-field fill rather than a small chip/pill. */
+    val inputBackground: Color,
     val stroke: Color,
     val shadow: Color,
     val primary: Color,
@@ -38,9 +43,11 @@ val DarkColors = TapizColors(
     isDark = true,
     canvasTop = Color(0xFF13161D), // oklch(20% 0.015 265)
     canvasBottom = Color(0xFF13161D),
-    card = Color(0xFF1D2842), // hero panel oklch(28% 0.05 265)
+    card = Color(0xFF21242B), // neutral generic card/sheet surface — rgba(255,255,255,.06) over canvasTop
+    heroPanel = Color(0xFF1D2842), // Onboarding hero panel only — oklch(28% 0.05 265)
     surfaceSolid = Color(0xFF1D2842),
     cardSubtle = Color(0x11FFFFFF), // rgba(255,255,255,.06-.07)
+    inputBackground = Color(0xFF1F1F1F), // neutral oklch(24% 0 0), no accent tint
     stroke = Color(0x14FFFFFF), // rgba(255,255,255,.08)
     shadow = Color(0x66000000),
     primary = Color(0xFF5888FC), // oklch(65% 0.18 265)
@@ -65,8 +72,10 @@ val LightColors = TapizColors(
     canvasTop = Color(0xFFF5F9FE), // oklch(98% 0.008 260)
     canvasBottom = Color(0xFFF5F9FE),
     card = Color(0xFFFFFFFF),
+    heroPanel = Color(0xFF2249B7), // unused directly — light hero uses `primary`; kept for parity
     surfaceSolid = Color(0xFFFFFFFF),
     cardSubtle = Color(0xFFE5EBF9), // oklch(94% 0.02 265)
+    inputBackground = Color(0xFFF2F2F2), // neutral oklch(96% 0 0), no accent tint
     stroke = Color(0xFFE8EBF2), // oklch(94% 0.01 265)
     shadow = Color(0x1E1E145A),
     primary = Color(0xFF2249B7), // oklch(45% 0.18 265)

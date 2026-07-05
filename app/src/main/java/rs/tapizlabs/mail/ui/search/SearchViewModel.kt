@@ -60,7 +60,8 @@ class SearchViewModel @Inject constructor(
             filters = currentFilters,
             results = results
                 .filter { message ->
-                    (currentFilters.accountId == null || message.accountId == currentFilters.accountId) &&
+                    message.isSynced &&
+                        (currentFilters.accountId == null || message.accountId == currentFilters.accountId) &&
                         (!currentFilters.hasAttachmentOnly || message.hasAttachments)
                 }
                 .map { it.toListItemUi() },

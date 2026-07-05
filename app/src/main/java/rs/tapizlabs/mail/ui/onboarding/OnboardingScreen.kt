@@ -60,9 +60,9 @@ fun OnboardingScreen(
     val colors = AppColors
     val strings = LocalStrings.current
     // Reference: light mode hero = primary indigo panel; dark mode hero = the
-    // dedicated deep-violet `card` token (oklch(28% 0.05 265)), not the plain dark
-    // canvas. Hero text is white in both modes.
-    val heroBackground = if (colors.isDark) colors.card else colors.primary
+    // dedicated deep-violet `heroPanel` token (oklch(28% 0.05 265)), not the plain
+    // dark canvas. Hero text is white in both modes.
+    val heroBackground = if (colors.isDark) colors.heroPanel else colors.primary
     // Reference CTA button: dark mode = primary-bg/onPrimary-text (a light-indigo
     // button that pops against the deep-violet hero); light mode = white-bg/
     // primary-text (a white button against the indigo hero). Not the same

@@ -15,9 +15,12 @@ object Routes {
     const val ADD_ACCOUNT_DETAILS = "add_account/details/{provider}?firstRun={firstRun}"
     const val EDIT_ACCOUNT = "add_account/edit/{accountId}"
     const val INBOX = "inbox"
-    const val SEARCH = "search"
     const val COMPOSE = "compose?mode={mode}&messageId={messageId}"
     const val SETTINGS = "settings"
+    const val SETTINGS_MAIL = "settings/mail"
+    const val SETTINGS_APPEARANCE = "settings/appearance"
+    const val SETTINGS_ABOUT = "settings/about"
+    const val SETTINGS_PRIVACY = "settings/privacy"
     const val MAIL_DETAIL = "mail/{messageId}"
 
     /** [firstRun] distinguishes the onboarding save (which continues to the

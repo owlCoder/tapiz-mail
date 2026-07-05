@@ -25,6 +25,7 @@ import rs.tapizlabs.mail.core.local.PrefsStore
 import rs.tapizlabs.mail.data.repository.AccountRepository
 import rs.tapizlabs.mail.security.CredentialStore
 import rs.tapizlabs.mail.sync.SyncScheduler
+import rs.tapizlabs.mail.ui.i18n.AppLanguage
 import rs.tapizlabs.mail.ui.theme.ThemePref
 
 data class SettingsUiState(
@@ -33,6 +34,7 @@ data class SettingsUiState(
     val selectedAccountId: String? = null,
     val swipeConfig: SwipeActionConfigEntity? = null,
     val themePref: ThemePref = ThemePref.System,
+    val languagePref: AppLanguage = AppLanguage.SR,
 ) {
     val selectedAccount: AccountEntity?
         get() = accounts.find { it.id == selectedAccountId } ?: accounts.firstOrNull()
@@ -53,10 +55,11 @@ class SettingsViewModel @Inject constructor(
         accountRepository.observeAllCategories(),
         _selectedAccountId,
         prefsStore.themePref,
-    ) { accounts, categories, selectedId, themePref ->
+        prefsStore.languagePref,
+    ) { accounts, categories, selectedId, themePref, languagePref ->
         val resolvedSelectedId = selectedId ?: accounts.firstOrNull()?.id
-        Quadruple(accounts, categories, resolvedSelectedId, themePref)
-    }.flatMapLatest { (accounts, categories, resolvedSelectedId, themePref) ->
+        Quintuple(accounts, categories, resolvedSelectedId, themePref, languagePref)
+    }.flatMapLatest { (accounts, categories, resolvedSelectedId, themePref, languagePref) ->
         val swipeFlow = resolvedSelectedId?.let { accountRepository.observeSwipeConfig(it) } ?: flowOf(null)
         swipeFlow.map { swipeConfig ->
             SettingsUiState(
@@ -65,6 +68,7 @@ class SettingsViewModel @Inject constructor(
                 selectedAccountId = resolvedSelectedId,
                 swipeConfig = swipeConfig,
                 themePref = themePref,
+                languagePref = languagePref,
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
@@ -75,6 +79,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setTheme(pref: ThemePref) {
         viewModelScope.launch { prefsStore.setThemePref(pref) }
+    }
+
+    fun setLanguage(language: AppLanguage) {
+        viewModelScope.launch { prefsStore.setLanguagePref(language) }
     }
 
     /** Applies a new sync interval to an account and reschedules its background sync. */
@@ -144,5 +152,5 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { accountRepository.deleteRule(rule) }
     }
 
-    private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
+    private data class Quintuple<A, B, C, D, E>(val first: A, val second: B, val third: C, val fourth: D, val fifth: E)
 }

@@ -87,7 +87,6 @@ class ImapClient @Inject constructor(
             lower.contains("sent") -> FolderType.SENT
             lower.contains("draft") -> FolderType.DRAFTS
             lower.contains("trash") || lower.contains("deleted") -> FolderType.TRASH
-            lower.contains("archive") || lower.contains("all mail") -> FolderType.ARCHIVE
             else -> FolderType.CUSTOM
         }
     }

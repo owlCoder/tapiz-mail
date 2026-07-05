@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.AttachFile
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,6 +43,11 @@ import kotlin.math.abs
  * One inbox row: avatar-initial circle, sender, subject, snippet, relative time, unread
  * indicator, star toggle, attachment paperclip. Presentational only — actions bubble up via
  * callbacks; the caller (ViewModel/screen) owns what happens on tap/star/swipe.
+ *
+ * @param isDraft shows a small pencil badge next to the subject — set only when the Inbox's
+ * Drafts pseudo-category ([rs.tapizlabs.mail.ui.inbox.PSEUDO_CATEGORY_DRAFTS]) is selected,
+ * since that's the sole view that mixes in local-only drafts (the normal Inbox/Search views
+ * filter them out — see their ViewModels).
  */
 @Composable
 fun MessageListItem(
@@ -49,6 +55,7 @@ fun MessageListItem(
     onClick: () -> Unit,
     onToggleStar: () -> Unit,
     modifier: Modifier = Modifier,
+    isDraft: Boolean = false,
 ) {
     val colors = AppColors
     val interactionSource = remember { MutableInteractionSource() }
@@ -104,15 +111,26 @@ fun MessageListItem(
 
             Spacer(Modifier.height(2.dp))
 
-            Text(
-                text = message.subject.ifBlank { "(no subject)" },
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = colors.textPrimary,
-                    fontWeight = if (!message.isRead) FontWeight.SemiBold else FontWeight.Normal,
-                ),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isDraft) {
+                    Icon(
+                        imageVector = Icons.Outlined.Edit,
+                        contentDescription = "Draft",
+                        tint = colors.textMuted,
+                        modifier = Modifier.size(13.dp),
+                    )
+                    Spacer(Modifier.width(4.dp))
+                }
+                Text(
+                    text = message.subject.ifBlank { "(no subject)" },
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = colors.textPrimary,
+                        fontWeight = if (!message.isRead) FontWeight.SemiBold else FontWeight.Normal,
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
 
             if (message.snippet.isNotBlank()) {
                 Text(

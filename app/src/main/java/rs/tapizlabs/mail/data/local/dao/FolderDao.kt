@@ -6,6 +6,7 @@ import androidx.room.Query
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 import rs.tapizlabs.mail.data.local.entity.FolderEntity
+import rs.tapizlabs.mail.data.local.entity.FolderType
 
 @Dao
 interface FolderDao {
@@ -18,6 +19,9 @@ interface FolderDao {
 
     @Query("SELECT * FROM folders WHERE id = :folderId")
     suspend fun getFolderOnce(folderId: String): FolderEntity?
+
+    @Query("SELECT * FROM folders WHERE accountId = :accountId AND type = :type LIMIT 1")
+    suspend fun getFolderOnceByType(accountId: String, type: FolderType): FolderEntity?
 
     @Upsert
     suspend fun upsert(folder: FolderEntity)

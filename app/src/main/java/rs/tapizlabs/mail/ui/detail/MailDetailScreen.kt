@@ -11,23 +11,28 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.outlined.Forward
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.AttachFile
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.MarkEmailUnread
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.HorizontalDivider
@@ -43,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -77,9 +83,6 @@ fun MailDetailScreen(
     Scaffold(
         modifier = modifier,
         containerColor = colors.canvasTop,
-        topBar = {
-            DetailTopBar(onBack = onBack)
-        },
         bottomBar = {
             if (!uiState.notFound) {
                 DetailBottomBar(
@@ -91,16 +94,14 @@ fun MailDetailScreen(
         },
     ) { padding ->
         if (uiState.notFound) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = strings.detailMessageNotFound,
-                    style = MaterialTheme.typography.bodyMedium.copy(color = colors.textMuted),
-                )
+            Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+                DetailTopBar(onBack = onBack)
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = strings.detailMessageNotFound,
+                        style = MaterialTheme.typography.bodyMedium.copy(color = colors.textMuted),
+                    )
+                }
             }
             return@Scaffold
         }
@@ -109,44 +110,51 @@ fun MailDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp),
+                .verticalScroll(rememberScrollState()),
         ) {
-            MessageHeader(
-                fromName = uiState.fromName,
-                fromAddress = uiState.fromAddress,
-                toAddresses = uiState.toAddresses,
-                isStarred = uiState.isStarred,
-                onToggleStar = { viewModel.toggleStar(uiState.isStarred) },
+            DetailActionBar(
+                onBack = onBack,
+                onDelete = { viewModel.delete(onDeleted = onBack) },
+                onMarkUnread = { viewModel.markUnread(); onBack() },
             )
 
-            Spacer(Modifier.height(16.dp))
+            Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                MessageHeader(
+                    fromName = uiState.fromName,
+                    fromAddress = uiState.fromAddress,
+                    toAddresses = uiState.toAddresses,
+                    isStarred = uiState.isStarred,
+                    onToggleStar = { viewModel.toggleStar(uiState.isStarred) },
+                )
 
-            Text(
-                text = uiState.subject.ifBlank { strings.detailNoSubject },
-                style = MaterialTheme.typography.titleLarge.copy(
-                    color = colors.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                ),
-            )
+                Spacer(Modifier.height(16.dp))
 
-            Spacer(Modifier.height(16.dp))
-
-            MessageBody(bodyHtml = uiState.bodyHtml, bodyPlain = uiState.bodyPlain)
-
-            if (uiState.attachments.isNotEmpty()) {
-                Spacer(Modifier.height(20.dp))
                 Text(
-                    text = strings.detailAttachmentsCount(uiState.attachments.size),
-                    style = MaterialTheme.typography.titleSmall.copy(
+                    text = uiState.subject.ifBlank { strings.detailNoSubject },
+                    style = MaterialTheme.typography.titleLarge.copy(
                         color = colors.textPrimary,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
                     ),
                 )
-                Spacer(Modifier.height(8.dp))
-                uiState.attachments.forEach { attachment ->
-                    AttachmentRow(attachment = attachment)
+
+                Spacer(Modifier.height(16.dp))
+
+                MessageBody(bodyHtml = uiState.bodyHtml, bodyPlain = uiState.bodyPlain)
+
+                if (uiState.attachments.isNotEmpty()) {
+                    Spacer(Modifier.height(20.dp))
+                    Text(
+                        text = strings.detailAttachmentsCount(uiState.attachments.size),
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                        ),
+                    )
                     Spacer(Modifier.height(8.dp))
+                    uiState.attachments.forEach { attachment ->
+                        AttachmentRow(attachment = attachment)
+                        Spacer(Modifier.height(8.dp))
+                    }
                 }
             }
         }
@@ -159,13 +167,52 @@ private fun DetailTopBar(onBack: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .statusBarsPadding()
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onBack) {
             Icon(
-                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                 contentDescription = "Back",
+                tint = colors.textMuted,
+            )
+        }
+    }
+}
+
+/** Back on the left, message actions (delete/mark-unread) end-aligned on the right — all in
+ * one row, not stacked (a stacked back-then-actions layout was tried and explicitly rejected
+ * in favor of this single-row arrangement). */
+@Composable
+private fun DetailActionBar(onBack: () -> Unit, onDelete: () -> Unit, onMarkUnread: () -> Unit) {
+    val colors = AppColors
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                contentDescription = "Back",
+                tint = colors.textPrimary,
+            )
+        }
+        Spacer(Modifier.weight(1f))
+        IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+            Icon(
+                imageVector = Icons.Outlined.Delete,
+                contentDescription = "Delete",
+                tint = colors.textMuted,
+            )
+        }
+        Spacer(Modifier.width(4.dp))
+        IconButton(onClick = onMarkUnread, modifier = Modifier.size(36.dp)) {
+            Icon(
+                imageVector = Icons.Outlined.MarkEmailUnread,
+                contentDescription = "Mark as unread",
                 tint = colors.textMuted,
             )
         }
@@ -277,6 +324,8 @@ private fun MessageHeader(
 private fun MessageBody(bodyHtml: String?, bodyPlain: String) {
     val colors = AppColors
     if (bodyHtml != null) {
+        val backgroundArgb = colors.canvasTop.toArgb()
+        val textArgb = colors.textPrimary.toArgb()
         AndroidView(
             modifier = Modifier.fillMaxWidth(),
             factory = { context ->
@@ -285,17 +334,88 @@ private fun MessageBody(bodyHtml: String?, bodyPlain: String) {
                     settings.javaScriptEnabled = false
                     settings.allowFileAccess = false
                     settings.allowContentAccess = false
+                    setBackgroundColor(backgroundArgb)
                 }
             },
             update = { webView ->
-                webView.loadDataWithBaseURL(null, bodyHtml, "text/html", "UTF-8", null)
+                webView.setBackgroundColor(backgroundArgb)
+                webView.loadDataWithBaseURL(null, wrapEmailHtml(bodyHtml, backgroundArgb, textArgb), "text/html", "UTF-8", null)
             },
         )
     } else {
-        Text(
-            text = bodyPlain,
-            style = MaterialTheme.typography.bodyMedium.copy(color = colors.textPrimary),
-        )
+        PlainTextBody(bodyPlain)
+    }
+}
+
+/** Forces remote email HTML to respect the app's current theme instead of showing through
+ * with its own (usually white) background — email HTML almost never ships a dark-mode
+ * variant. `!important` on `html`/`body` covers the common case where the message doesn't
+ * set an inline background directly on `<body>`; deeply-nested elements with their own
+ * explicit `background:white` divs are a known remaining limitation (no JS means no DOM
+ * rewriting is possible here). */
+private fun wrapEmailHtml(bodyHtml: String, backgroundArgb: Int, textArgb: Int): String {
+    val backgroundHex = String.format("#%06X", 0xFFFFFF and backgroundArgb)
+    val textHex = String.format("#%06X", 0xFFFFFF and textArgb)
+    return """
+        <html>
+        <head>
+        <meta name="color-scheme" content="light dark">
+        <style>
+            html, body {
+                background: $backgroundHex !important;
+                color: $textHex !important;
+            }
+        </style>
+        </head>
+        <body>$bodyHtml</body>
+        </html>
+    """.trimIndent()
+}
+
+/** Renders plain-text bodies with `>`-prefixed reply/forward quotes visually set apart
+ * (muted color, smaller type, left rule) — [bodyPlain] otherwise reads as one undifferentiated
+ * wall of text once a reply chain has a few levels of quoting. Groups consecutive quoted
+ * lines into a single block rather than drawing a rule per line. */
+@Composable
+private fun PlainTextBody(bodyPlain: String) {
+    val colors = AppColors
+    val lines = bodyPlain.lines()
+    var index = 0
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        while (index < lines.size) {
+            val line = lines[index]
+            if (line.trimStart().startsWith(">")) {
+                val quoteLines = mutableListOf<String>()
+                while (index < lines.size && lines[index].trimStart().startsWith(">")) {
+                    quoteLines.add(lines[index].trimStart().removePrefix(">").trimStart())
+                    index++
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min)
+                        .padding(vertical = 4.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .width(2.dp)
+                            .background(colors.stroke),
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        text = quoteLines.joinToString("\n"),
+                        style = MaterialTheme.typography.bodySmall.copy(color = colors.textMuted),
+                    )
+                }
+            } else {
+                Text(
+                    text = line,
+                    style = MaterialTheme.typography.bodyMedium.copy(color = colors.textPrimary),
+                )
+                index++
+            }
+        }
     }
 }
 

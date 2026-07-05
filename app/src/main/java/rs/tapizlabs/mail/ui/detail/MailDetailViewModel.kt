@@ -79,6 +79,23 @@ class MailDetailViewModel @Inject constructor(
             repository.setStarred(messageId, !currentlyStarred)
         }
     }
+
+    fun markUnread() {
+        viewModelScope.launch {
+            repository.setRead(messageId, false)
+        }
+    }
+
+    /** [onDeleted] fires once the row is gone so the screen can navigate back — without this,
+     * [uiState] would just flip to `notFound = true` post-delete (observeMessage emitting
+     * null) and strand the user on a "message not found" screen instead of returning them
+     * to the inbox. */
+    fun delete(onDeleted: () -> Unit) {
+        viewModelScope.launch {
+            repository.moveToTrash(messageId)
+            onDeleted()
+        }
+    }
 }
 
 private fun MessageEntity.toUiState(attachments: List<AttachmentEntity>) = MailDetailUiState(

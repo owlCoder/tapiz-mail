@@ -134,7 +134,10 @@ private fun LanguageOptionRow(name: String, isSelected: Boolean, onClick: () -> 
     }
 }
 
-private fun displayName(language: AppLanguage, strings: Strings): String = when (language) {
+/** Shared display-name lookup for [AppLanguage] — each language shown in its own
+ * script/name (e.g. "Srpski (latinica)", "Deutsch"). Reused by [SettingsScreen]'s
+ * language picker row so the two pickers never drift. */
+fun displayName(language: AppLanguage, strings: Strings): String = when (language) {
     AppLanguage.SR -> strings.languageNameSerbian
     AppLanguage.EN -> strings.languageNameEnglish
     AppLanguage.DE -> strings.languageNameGerman

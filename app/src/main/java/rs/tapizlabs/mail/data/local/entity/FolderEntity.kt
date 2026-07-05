@@ -11,7 +11,6 @@ enum class FolderType {
     SENT,
     DRAFTS,
     TRASH,
-    ARCHIVE,
     CUSTOM,
 }
 

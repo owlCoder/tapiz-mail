@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import rs.tapizlabs.mail.data.local.entity.AccountEntity
 import rs.tapizlabs.mail.data.local.entity.ConnectionSecurity
 import rs.tapizlabs.mail.data.repository.AccountRepository
+import rs.tapizlabs.mail.data.repository.MailSyncGateway
 import rs.tapizlabs.mail.security.CredentialStore
 import rs.tapizlabs.mail.sync.SyncScheduler
 
@@ -75,6 +76,7 @@ class AddAccountViewModel @Inject constructor(
     private val accountRepository: AccountRepository,
     private val credentialStore: CredentialStore,
     private val syncScheduler: SyncScheduler,
+    private val syncGateway: MailSyncGateway,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -232,6 +234,12 @@ class AddAccountViewModel @Inject constructor(
             syncScheduler.scheduleFor(account)
             _state.update { it.copy(saving = false) }
             onSaved(account)
+
+            // Kick off an immediate fetch instead of waiting for the first periodic
+            // WorkManager run — a newly added account should show mail right away, not
+            // whenever its sync interval next fires. Fire-and-forget: the screen has
+            // already navigated away via onSaved above, so nothing awaits this result.
+            runCatching { syncGateway.refresh(account.id) }
         }
     }
 }

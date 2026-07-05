@@ -15,7 +15,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import rs.tapizlabs.mail.ui.account.AddAccountScreen
 import rs.tapizlabs.mail.ui.account.ChooseProviderScreen
-import rs.tapizlabs.mail.ui.components.MailLoadingScreen
 import rs.tapizlabs.mail.ui.compose.ComposeScreen
 import rs.tapizlabs.mail.ui.detail.MailDetailScreen
 import rs.tapizlabs.mail.ui.i18n.CurrentStrings
@@ -26,20 +25,24 @@ import rs.tapizlabs.mail.ui.inbox.InboxScreen
 import rs.tapizlabs.mail.ui.onboarding.LanguagePickerScreen
 import rs.tapizlabs.mail.ui.onboarding.NotificationPermissionScreen
 import rs.tapizlabs.mail.ui.onboarding.OnboardingScreen
-import rs.tapizlabs.mail.ui.search.SearchScreen
+import rs.tapizlabs.mail.ui.settings.AboutScreen
+import rs.tapizlabs.mail.ui.settings.AppearanceSettingsScreen
+import rs.tapizlabs.mail.ui.settings.MailSettingsScreen
+import rs.tapizlabs.mail.ui.settings.PrivacyScreen
 import rs.tapizlabs.mail.ui.settings.SettingsScreen
 
 /**
  * Top-level NavHost, called with no args from `MainActivity` inside `MailTheme { }`.
  *
  * No bottom nav bar — design_handoff_tapiz_mail_android/design-reference.html shows a
- * full-bleed Inbox with no tab bar at all. Compose is reached only via the FAB; Search
- * and Settings are reached via icon buttons on the Inbox top bar and are plain push
- * destinations (with a back arrow), not tabs.
+ * full-bleed Inbox with no tab bar at all. Compose/Drafts/Settings are reached via icon
+ * buttons on the Inbox top bar and are plain push destinations (with a back arrow), not
+ * tabs. Search is the one exception — it's a local full-screen overlay inside
+ * [rs.tapizlabs.mail.ui.inbox.InboxScreen] (Gmail-style), not a NavHost route at all.
  *
  * Start destination depends on whether any account is configured yet ([RootViewModel]):
  * no accounts -> Language picker -> Onboarding -> Add-Account (first-run); otherwise Inbox,
- * with Search/Compose/Settings/MailDetail/Add-Account-edit reached via push-navigation.
+ * with Drafts/Compose/Settings/MailDetail/Add-Account-edit reached via push-navigation.
  *
  * @param pendingMessageId set by `MainActivity` when the app was launched/resumed from a
  * "new mail" notification tap ([rs.tapizlabs.mail.sync.NewMailNotifier]) — navigates straight
@@ -60,13 +63,10 @@ fun RootNavigation(
     // Keep the non-composable snapshot (ViewModel/repository messages) in sync.
     CurrentStrings.value = stringsFor(language)
 
-    when (startState) {
-        RootStartState.Loading -> {
-            MailLoadingScreen(modifier = Modifier.fillMaxSize())
-            return
-        }
-        else -> Unit
-    }
+    // No loading screen here — resolving whether an account exists is a local Room read
+    // that finishes before the native splash even hands off, so a brand loading state
+    // would never actually get seen; it only added a pointless composition step.
+    if (startState == RootStartState.Loading) return
 
     val startDestination = if (startState == RootStartState.NoAccounts) Routes.LANGUAGE_PICKER else Routes.INBOX
 
@@ -158,17 +158,10 @@ fun RootNavigation(
         composable(Routes.INBOX) {
             InboxScreen(
                 onOpenMessage = { messageId -> navController.navigate(Routes.mailDetail(messageId)) },
+                onOpenDraft = { messageId -> navController.navigate(Routes.compose(mode = "draft", messageId = messageId)) },
                 onAddAccount = { navController.navigate(Routes.addAccount()) },
                 onCompose = { navController.navigate(Routes.compose(mode = "new")) },
-                onSearch = { navController.navigate(Routes.SEARCH) },
                 onSettings = { navController.navigate(Routes.SETTINGS) },
-            )
-        }
-
-        composable(Routes.SEARCH) {
-            SearchScreen(
-                onOpenMessage = { messageId -> navController.navigate(Routes.mailDetail(messageId)) },
-                onBack = { navController.popBackStack() },
             )
         }
 
@@ -189,8 +182,28 @@ fun RootNavigation(
             SettingsScreen(
                 onAddAccount = { navController.navigate(Routes.addAccount()) },
                 onEditAccount = { accountId -> navController.navigate(Routes.editAccount(accountId)) },
+                onOpenMailSettings = { navController.navigate(Routes.SETTINGS_MAIL) },
+                onOpenAppearanceSettings = { navController.navigate(Routes.SETTINGS_APPEARANCE) },
+                onOpenAbout = { navController.navigate(Routes.SETTINGS_ABOUT) },
+                onOpenPrivacy = { navController.navigate(Routes.SETTINGS_PRIVACY) },
                 onBack = { navController.popBackStack() },
             )
+        }
+
+        composable(Routes.SETTINGS_MAIL) {
+            MailSettingsScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Routes.SETTINGS_APPEARANCE) {
+            AppearanceSettingsScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Routes.SETTINGS_ABOUT) {
+            AboutScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Routes.SETTINGS_PRIVACY) {
+            PrivacyScreen(onBack = { navController.popBackStack() })
         }
 
         composable(

@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.TapizMail" parent="Theme.AppCompat.NoActionBar" />
+    <style name="Theme.TapizMail" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
     <!-- Unified Tapiz splash (same recipe in LMS / Boards / Status): theme-aware
          canvas + the app's primary logo glyph. -->
     <style name="Theme.TapizMail.Splash" parent="Theme.SplashScreen">

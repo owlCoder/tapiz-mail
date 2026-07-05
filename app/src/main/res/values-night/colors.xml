@@ -3,4 +3,5 @@
     <!-- Dark splash: ink brand canvas + cyan glyph. -->
     <color name="splash_background">#13161D</color>
     <color name="splash_glyph">#5888FC</color>
+    <color name="window_background">#13161D</color>
 </resources>

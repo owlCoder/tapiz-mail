@@ -25,6 +25,12 @@ import rs.tapizlabs.mail.mail.ParsedMessage
 import rs.tapizlabs.mail.security.CredentialStore
 import rs.tapizlabs.mail.sync.NewMailNotifier
 
+/** Shared prefix for [MailRepository.saveDraft]'s synthetic local-only Drafts
+ * [FolderEntity] id (`"$LOCAL_FOLDER_ID_PREFIX$accountId"`-based) — this folder has no IMAP
+ * counterpart and must be excluded from any code that iterates folders to sync against the
+ * server. */
+private const val LOCAL_FOLDER_ID_PREFIX = "local-"
+
 /**
  * Single fetch-and-upsert path for one account's folders, shared by
  * [rs.tapizlabs.mail.sync.MailSyncWorker] (periodic fallback) and
@@ -55,15 +61,48 @@ class SyncRepository @Inject constructor(
 
         val store = imapClient.connect(account, password)
         try {
+            // Nothing else ever provisions a real account's remote folders into Room (the
+            // only other FolderEntity writer is MailRepository's synthetic local-only
+            // Drafts folder) — without this, `folders` below is permanently empty and no
+            // account ever syncs its Inbox, no matter how many times refresh/IDLE fires.
+            // Runs on every sync (cheap IMAP LIST call) so it also self-heals if it was
+            // ever skipped, and picks up folders added on the server later.
+            ensureFoldersProvisioned(accountId, store)
+
+            // Excludes the synthetic local-only Drafts folder (see MailRepository.saveDraft)
+            // — it has no IMAP-side counterpart, so fetchNewMessages would always throw
+            // FolderNotFoundException for it.
             val folders = folderDao.getFoldersForAccount(accountId).first()
+                .filterNot { it.id.startsWith(LOCAL_FOLDER_ID_PREFIX) }
             var newCount = 0
             for (folder in folders) {
-                newCount += syncOneFolder(store, folder, rules, account.displayName)
+                // One folder's failure (e.g. a stale/renamed remote mailbox) must not abort
+                // sync for every other folder on the account, INBOX included.
+                newCount += runCatching { syncOneFolder(store, folder, rules, account.displayName) }
+                    .getOrDefault(0)
             }
             newCount
         } finally {
             runCatching { store.close() }
         }
+    }
+
+    private suspend fun ensureFoldersProvisioned(accountId: String, store: IMAPStore) {
+        val remoteFolders = imapClient.listFolders(store)
+        val existingByRemoteName = folderDao.getFoldersForAccount(accountId).first()
+            .associateBy { it.remoteName }
+        val toUpsert = remoteFolders.map { info ->
+            val existing = existingByRemoteName[info.remoteName]
+            FolderEntity(
+                id = existing?.id ?: "$accountId:${info.remoteName}",
+                accountId = accountId,
+                remoteName = info.remoteName,
+                displayName = info.displayName,
+                type = info.type,
+                unreadCount = existing?.unreadCount ?: 0,
+            )
+        }
+        folderDao.upsertAll(toUpsert)
     }
 
     /** Fetches+upserts a single folder on an already-connected [store] (does not close
@@ -81,7 +120,7 @@ class SyncRepository @Inject constructor(
         }
 
     /** Notifies the user only for genuinely new incoming mail — [FolderType.INBOX] — never
-     * for Sent/Drafts/Trash/Archive/Custom folders syncing in the background. */
+     * for Sent/Drafts/Trash/Custom folders syncing in the background. */
     private suspend fun syncOneFolder(
         store: IMAPStore,
         folder: FolderEntity,

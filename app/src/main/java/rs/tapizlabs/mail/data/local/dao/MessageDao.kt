@@ -63,6 +63,9 @@ interface MessageDao {
     @Query("UPDATE messages SET categoryId = :categoryId WHERE id = :messageId")
     suspend fun setCategory(messageId: String, categoryId: String?)
 
+    @Query("UPDATE messages SET folderId = :folderId WHERE id = :messageId")
+    suspend fun moveToFolder(messageId: String, folderId: String)
+
     @Delete
     suspend fun delete(message: MessageEntity)
 

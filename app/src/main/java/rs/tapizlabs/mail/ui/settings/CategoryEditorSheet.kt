@@ -33,6 +33,7 @@ import rs.tapizlabs.mail.ui.components.MailGhostButton
 import rs.tapizlabs.mail.ui.components.MailPrimaryButton
 import rs.tapizlabs.mail.ui.components.MailSheet
 import rs.tapizlabs.mail.ui.components.MailTextField
+import rs.tapizlabs.mail.ui.i18n.Strings
 import rs.tapizlabs.mail.ui.theme.AppColors
 
 /**
@@ -47,6 +48,7 @@ fun CategoryEditorSheet(
     category: CategoryEntity?,
     accountId: String?,
     viewModel: SettingsViewModel,
+    strings: Strings,
     onDismiss: () -> Unit,
 ) {
     val colors = AppColors
@@ -62,17 +64,17 @@ fun CategoryEditorSheet(
 
     MailSheet(visible = visible, onDismiss = onDismiss) {
         Text(
-            text = if (category == null) "New category" else "Edit category",
+            text = if (category == null) strings.categoryEditorNewTitle else strings.categoryEditorEditTitle,
             style = MaterialTheme.typography.titleMedium,
             color = colors.textPrimary,
             fontWeight = FontWeight.Bold,
         )
         Spacer(Modifier.height(16.dp))
 
-        MailTextField(value = name, onValueChange = { name = it }, label = "Category name")
+        MailTextField(value = name, onValueChange = { name = it }, label = strings.categoryEditorNameLabel)
 
         Spacer(Modifier.height(16.dp))
-        Text(text = "Match rules", color = colors.textMuted, style = MaterialTheme.typography.labelLarge)
+        Text(text = strings.categoryEditorMatchRulesLabel, color = colors.textMuted, style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(8.dp))
 
         rules.forEach { rule ->
@@ -82,7 +84,7 @@ fun CategoryEditorSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "${rule.matchField.name.lowercase()} ${rule.matchType.name.lowercase().replace('_', ' ')} \"${rule.matchValue}\"",
+                    text = "${ruleFieldLabel(rule.matchField, strings)} ${ruleTypeLabel(rule.matchType, strings).lowercase()} \"${rule.matchValue}\"",
                     color = colors.textPrimary,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.weight(1f),
@@ -97,18 +99,18 @@ fun CategoryEditorSheet(
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MailDropdownField(
-                label = "Field",
+                label = strings.categoryEditorFieldLabel,
                 options = RuleMatchField.entries,
                 selected = ruleField,
-                optionLabel = { it.name.lowercase().replaceFirstChar(Char::uppercase) },
+                optionLabel = { ruleFieldLabel(it, strings) },
                 onSelect = { ruleField = it },
                 modifier = Modifier.weight(1f),
             )
             MailDropdownField(
-                label = "Match",
+                label = strings.categoryEditorMatchLabel,
                 options = RuleMatchType.entries,
                 selected = ruleType,
-                optionLabel = { it.name.lowercase().replace('_', ' ').replaceFirstChar(Char::uppercase) },
+                optionLabel = { ruleTypeLabel(it, strings) },
                 onSelect = { ruleType = it },
                 modifier = Modifier.weight(1f),
             )
@@ -118,13 +120,13 @@ fun CategoryEditorSheet(
             MailTextField(
                 value = ruleValue,
                 onValueChange = { ruleValue = it },
-                label = "Value",
+                label = strings.categoryEditorValueLabel,
                 modifier = Modifier.weight(1f),
             )
         }
         Spacer(Modifier.height(8.dp))
         MailGhostButton(
-            text = "Add rule",
+            text = strings.categoryEditorAddRule,
             icon = Icons.Outlined.Add,
             onClick = {
                 val categoryId = category?.id
@@ -140,7 +142,7 @@ fun CategoryEditorSheet(
         Spacer(Modifier.height(20.dp))
 
         MailPrimaryButton(
-            text = "Save category",
+            text = strings.categoryEditorSave,
             icon = Icons.Outlined.Save,
             onClick = {
                 viewModel.saveCategory(name, category?.id, accountId)
@@ -150,4 +152,16 @@ fun CategoryEditorSheet(
             modifier = Modifier.fillMaxWidth(),
         )
     }
+}
+
+private fun ruleFieldLabel(field: RuleMatchField, strings: Strings): String = when (field) {
+    RuleMatchField.SENDER -> strings.ruleFieldSender
+    RuleMatchField.SUBJECT -> strings.ruleFieldSubject
+    RuleMatchField.BODY -> strings.ruleFieldBody
+}
+
+private fun ruleTypeLabel(type: RuleMatchType, strings: Strings): String = when (type) {
+    RuleMatchType.CONTAINS -> strings.ruleTypeContains
+    RuleMatchType.EQUALS -> strings.ruleTypeEquals
+    RuleMatchType.STARTS_WITH -> strings.ruleTypeStartsWith
 }

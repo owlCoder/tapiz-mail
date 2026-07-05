@@ -6,7 +6,6 @@ import androidx.room.PrimaryKey
 
 /** Action triggered by a Gmail-style list-item swipe gesture. */
 enum class SwipeAction {
-    ARCHIVE,
     DELETE,
     MARK_READ,
     MARK_UNREAD,
@@ -17,10 +16,9 @@ enum class SwipeAction {
  * Per-account swipe-action configuration for the message list.
  *
  * One row per account (keyed by [accountId], enforced as the primary key) rather than a single
- * global row: swipe behavior is a per-mailbox preference in Gmail-style clients (e.g. a user may
- * want swipe-to-archive on a Gmail account but swipe-to-delete on a university account that has
- * no Archive folder). The sync/UI layer falls back to a sensible default when no row exists yet
- * for a given account.
+ * global row: swipe behavior is a per-mailbox preference some users like different for different
+ * accounts. The sync/UI layer falls back to a sensible default when no row exists yet for a
+ * given account.
  */
 @Entity(
     tableName = "swipe_action_configs",

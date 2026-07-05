@@ -102,14 +102,40 @@ class Strings internal constructor() {
     lateinit var inboxAddAccount: String
     lateinit var inboxToday: String
     lateinit var inboxYesterday: String
+    /** Fixed pseudo-category chip labels, prepended to the user's own category chips —
+     * the only entry points into the Inbox/Drafts/Trash views (no separate top-bar icons). */
+    lateinit var inboxChipInbox: String
+    lateinit var inboxChipDrafts: String
+    lateinit var inboxChipTrash: String
 
     // Compose
     lateinit var composeNewMessage: String
+    lateinit var composeFrom: String
     lateinit var composeTo: String
     lateinit var composeCc: String
     lateinit var composeBcc: String
     lateinit var composeSubject: String
     lateinit var composeBodyPlaceholder: String
+    lateinit var composeDiscardTitle: String
+    lateinit var composeDiscardMessage: String
+    lateinit var composeSaveDraft: String
+    lateinit var composeDiscard: String
+    lateinit var composeCancel: String
+
+    // Drafts
+    lateinit var draftsTitle: String
+    lateinit var draftsEmpty: String
+    lateinit var draftsEmptySubtext: String
+    lateinit var inboxDrafts: String
+
+    // Search
+    lateinit var searchPlaceholder: String
+    lateinit var searchAllAccounts: String
+    lateinit var searchHasAttachment: String
+    lateinit var searchHint: String
+    lateinit var searchNoResults: String
+    lateinit var searchResultsCountTemplate: String
+    fun searchResultsCount(count: Int): String = searchResultsCountTemplate.format(count)
 
     // Mail detail
     lateinit var detailReply: String
@@ -133,19 +159,67 @@ class Strings internal constructor() {
     lateinit var settingsRemove: String
     lateinit var settingsCancel: String
     lateinit var settingsSyncSection: String
+    lateinit var settingsSyncSectionSubtitle: String
     lateinit var settingsSyncIntervalLabel: String
     lateinit var settingsSyncIntervalMinutesTemplate: String
     fun settingsSyncIntervalMinutes(minutes: Int): String = settingsSyncIntervalMinutesTemplate.format(minutes)
     lateinit var settingsSwipeActionsSection: String
+    lateinit var settingsSwipeActionsSectionSubtitle: String
     lateinit var settingsSwipeLeft: String
     lateinit var settingsSwipeRight: String
+    lateinit var swipeActionDelete: String
+    lateinit var swipeActionMarkRead: String
+    lateinit var swipeActionMarkUnread: String
+    lateinit var swipeActionNone: String
+    lateinit var categoryEditorNewTitle: String
+    lateinit var categoryEditorEditTitle: String
+    lateinit var categoryEditorNameLabel: String
+    lateinit var categoryEditorMatchRulesLabel: String
+    lateinit var categoryEditorFieldLabel: String
+    lateinit var categoryEditorMatchLabel: String
+    lateinit var categoryEditorValueLabel: String
+    lateinit var categoryEditorAddRule: String
+    lateinit var categoryEditorSave: String
+    lateinit var ruleFieldSender: String
+    lateinit var ruleFieldSubject: String
+    lateinit var ruleFieldBody: String
+    lateinit var ruleTypeContains: String
+    lateinit var ruleTypeEquals: String
+    lateinit var ruleTypeStartsWith: String
     lateinit var settingsCategoriesSection: String
+    lateinit var settingsCategoriesSectionSubtitle: String
     lateinit var settingsNoCategories: String
     lateinit var settingsAppearanceSection: String
+    lateinit var settingsAppearanceSectionSubtitle: String
     lateinit var settingsTheme: String
     lateinit var settingsThemeSystem: String
     lateinit var settingsThemeLight: String
     lateinit var settingsThemeDark: String
+    lateinit var settingsLanguageSection: String
+    lateinit var settingsLanguageSectionSubtitle: String
+    lateinit var settingsLanguage: String
+    lateinit var settingsMailSection: String
+    lateinit var settingsMailSectionSubtitle: String
+    lateinit var settingsAppearanceLanguageSection: String
+    lateinit var settingsAppearanceLanguageSectionSubtitle: String
+    lateinit var settingsPrivacySection: String
+    lateinit var settingsPrivacySectionSubtitle: String
+    lateinit var settingsPrivacyParagraph1: String
+    lateinit var settingsPrivacyParagraph2: String
+    lateinit var settingsPrivacyParagraph3: String
+    lateinit var settingsPrivacyParagraph4: String
+    lateinit var settingsAboutSection: String
+    lateinit var settingsAppName: String
+    lateinit var settingsAboutTagline: String
+    lateinit var settingsAboutVersion: String
+    lateinit var settingsAboutPlatform: String
+    lateinit var settingsAboutAuthor: String
+    /** `%s` placeholder for the copyright year — use [settingsCopyright]. */
+    lateinit var settingsCopyrightTemplate: String
+    fun settingsCopyright(year: String): String = settingsCopyrightTemplate.format(year)
+    /** `%s` placeholder for the version name — use [settingsAppVersion]. */
+    lateinit var settingsAppVersionTemplate: String
+    fun settingsAppVersion(versionName: String): String = settingsAppVersionTemplate.format(versionName)
 }
 
 val SrStrings = Strings().apply {
@@ -211,13 +285,34 @@ val SrStrings = Strings().apply {
     inboxAddAccount = "Dodaj nalog"
     inboxToday = "Danas"
     inboxYesterday = "Juče"
+    inboxChipInbox = "Prijemno"
+    inboxChipDrafts = "Nedovršeno"
+    inboxChipTrash = "Otpad"
 
     composeNewMessage = "Nova poruka"
+    composeFrom = "Od"
     composeTo = "Prima"
     composeCc = "Cc"
     composeBcc = "Bcc"
     composeSubject = "Naslov"
     composeBodyPlaceholder = "Napiši poruku…"
+    composeDiscardTitle = "Odbaciti poruku?"
+    composeDiscardMessage = "Možeš sačuvati poruku kao draft i nastaviti kasnije, ili je trajno odbaciti."
+    composeSaveDraft = "Sačuvaj draft"
+    composeDiscard = "Odbaci"
+    composeCancel = "Otkaži"
+
+    draftsTitle = "Draftovi"
+    draftsEmpty = "Nema draftova"
+    draftsEmptySubtext = "Nedovršene poruke se čuvaju ovde."
+    inboxDrafts = "Draftovi"
+
+    searchPlaceholder = "Pretraži poštu"
+    searchAllAccounts = "Svi nalozi"
+    searchHasAttachment = "Sa prilogom"
+    searchHint = "Pretraži svu sinhronizovanu poštu"
+    searchNoResults = "Nema rezultata"
+    searchResultsCountTemplate = "%d rezultata"
 
     detailReply = "Odgovori"
     detailForward = "Prosledi"
@@ -236,18 +331,62 @@ val SrStrings = Strings().apply {
     settingsRemove = "Ukloni"
     settingsCancel = "Otkaži"
     settingsSyncSection = "Sinhronizacija"
+    settingsSyncSectionSubtitle = "Koliko često app proverava novu poštu"
     settingsSyncIntervalLabel = "Proveri novu poštu svakih"
     settingsSyncIntervalMinutesTemplate = "%d min"
     settingsSwipeActionsSection = "Swipe akcije"
+    settingsSwipeActionsSectionSubtitle = "Šta se dešava kad prevučeš poruku levo ili desno"
     settingsSwipeLeft = "Swipe levo"
     settingsSwipeRight = "Swipe desno"
+    swipeActionDelete = "Obriši"
+    swipeActionMarkRead = "Označi kao pročitano"
+    swipeActionMarkUnread = "Označi kao nepročitano"
+    swipeActionNone = "Ništa"
+    categoryEditorNewTitle = "Nova kategorija"
+    categoryEditorEditTitle = "Izmeni kategoriju"
+    categoryEditorNameLabel = "Naziv kategorije"
+    categoryEditorMatchRulesLabel = "Pravila za uparivanje"
+    categoryEditorFieldLabel = "Polje"
+    categoryEditorMatchLabel = "Uslov"
+    categoryEditorValueLabel = "Vrednost"
+    categoryEditorAddRule = "Dodaj pravilo"
+    categoryEditorSave = "Sačuvaj kategoriju"
+    ruleFieldSender = "Pošiljalac"
+    ruleFieldSubject = "Naslov"
+    ruleFieldBody = "Sadržaj"
+    ruleTypeContains = "Sadrži"
+    ruleTypeEquals = "Jednako"
+    ruleTypeStartsWith = "Počinje sa"
     settingsCategoriesSection = "Kategorije i pravila"
+    settingsCategoriesSectionSubtitle = "Automatsko sortiranje pošte po pravilima"
     settingsNoCategories = "Još nema kategorija — dodaj jednu da automatski sortiraš poštu po pošiljaocu, naslovu ili sadržaju."
     settingsAppearanceSection = "Izgled"
+    settingsAppearanceSectionSubtitle = "Svetla, tamna ili automatska tema"
     settingsTheme = "Tema"
-    settingsThemeSystem = "Sistemska"
+    settingsThemeSystem = "Auto"
     settingsThemeLight = "Svetla"
     settingsThemeDark = "Tamna"
+    settingsLanguageSection = "Jezik"
+    settingsLanguageSectionSubtitle = "Jezik korisničkog interfejsa aplikacije"
+    settingsLanguage = "Jezik aplikacije"
+    settingsMailSection = "Pošta"
+    settingsMailSectionSubtitle = "Sinhronizacija, swipe akcije, kategorije i pravila"
+    settingsAppearanceLanguageSection = "Izgled i jezik"
+    settingsAppearanceLanguageSectionSubtitle = "Tema i jezik aplikacije"
+    settingsPrivacySection = "Privatnost"
+    settingsPrivacySectionSubtitle = "Kako Tapiz Mail čuva tvoje podatke"
+    settingsPrivacyParagraph1 = "Tapiz Mail nema svoj backend server. Aplikacija se povezuje direktno sa IMAP/SMTP serverom tvog naloga (Gmail, Outlook, univerzitetski mejl ili bilo koji drugi) — pošta nikad ne prolazi kroz servere Tapiz Labs-a niti bilo koje treće strane."
+    settingsPrivacyParagraph2 = "Kredencijali naloga (lozinke) čuvaju se isključivo lokalno na uređaju, u sistemskom Android Keystore-u preko šifrovanog skladišta — nikad u običnom tekstu, nikad u bazi podataka aplikacije, i nikad se ne šalju nikuda osim direktno tvom mejl provajderu radi autentifikacije."
+    settingsPrivacyParagraph3 = "Poruke, prilozi i podešavanja (kategorije, pravila, swipe akcije) čuvaju se lokalno u bazi podataka na uređaju radi brzog pristupa van mreže. Ovi podaci se ne sinhronizuju ni na jedan Tapiz server niti bilo koju cloud uslugu — ostaju na tvom telefonu."
+    settingsPrivacyParagraph4 = "Aplikacija ne prikuplja analitiku niti telemetriju o tvom korišćenju i ne deli podatke sa oglašivačima ili trećim stranama. Jedina mrežna komunikacija je direktna IMAP/SMTP konekcija ka nalogu koji si sam podesio."
+    settingsAboutSection = "O aplikaciji"
+    settingsAppName = "Tapiz Mail"
+    settingsAboutTagline = "Nezavisan mejl klijent — direktno sa telefona na tvoj IMAP/SMTP nalog, bez posrednika."
+    settingsAboutVersion = "Verzija"
+    settingsAboutPlatform = "Platforma"
+    settingsAboutAuthor = "Autor"
+    settingsCopyrightTemplate = "© %s Tapiz Labs. Sva prava zadržana."
+    settingsAppVersionTemplate = "Verzija %s"
 }
 
 val EnStrings = Strings().apply {
@@ -313,13 +452,34 @@ val EnStrings = Strings().apply {
     inboxAddAccount = "Add account"
     inboxToday = "Today"
     inboxYesterday = "Yesterday"
+    inboxChipInbox = "Inbox"
+    inboxChipDrafts = "Drafts"
+    inboxChipTrash = "Trash"
 
     composeNewMessage = "New message"
+    composeFrom = "From"
     composeTo = "To"
     composeCc = "Cc"
     composeBcc = "Bcc"
     composeSubject = "Subject"
     composeBodyPlaceholder = "Write your message…"
+    composeDiscardTitle = "Discard message?"
+    composeDiscardMessage = "You can save this as a draft and continue later, or discard it for good."
+    composeSaveDraft = "Save draft"
+    composeDiscard = "Discard"
+    composeCancel = "Cancel"
+
+    draftsTitle = "Drafts"
+    draftsEmpty = "No drafts"
+    draftsEmptySubtext = "Unfinished messages are kept here."
+    inboxDrafts = "Drafts"
+
+    searchPlaceholder = "Search mail"
+    searchAllAccounts = "All accounts"
+    searchHasAttachment = "Has attachment"
+    searchHint = "Search across all your synced mail"
+    searchNoResults = "No results"
+    searchResultsCountTemplate = "%d results"
 
     detailReply = "Reply"
     detailForward = "Forward"
@@ -338,18 +498,62 @@ val EnStrings = Strings().apply {
     settingsRemove = "Remove"
     settingsCancel = "Cancel"
     settingsSyncSection = "Sync"
+    settingsSyncSectionSubtitle = "How often the app checks for new mail"
     settingsSyncIntervalLabel = "Check for new mail every"
     settingsSyncIntervalMinutesTemplate = "%d min"
     settingsSwipeActionsSection = "Swipe actions"
+    settingsSwipeActionsSectionSubtitle = "What happens when you swipe a message left or right"
     settingsSwipeLeft = "Swipe left"
     settingsSwipeRight = "Swipe right"
+    swipeActionDelete = "Delete"
+    swipeActionMarkRead = "Mark as read"
+    swipeActionMarkUnread = "Mark as unread"
+    swipeActionNone = "None"
+    categoryEditorNewTitle = "New category"
+    categoryEditorEditTitle = "Edit category"
+    categoryEditorNameLabel = "Category name"
+    categoryEditorMatchRulesLabel = "Match rules"
+    categoryEditorFieldLabel = "Field"
+    categoryEditorMatchLabel = "Match"
+    categoryEditorValueLabel = "Value"
+    categoryEditorAddRule = "Add rule"
+    categoryEditorSave = "Save category"
+    ruleFieldSender = "Sender"
+    ruleFieldSubject = "Subject"
+    ruleFieldBody = "Body"
+    ruleTypeContains = "Contains"
+    ruleTypeEquals = "Equals"
+    ruleTypeStartsWith = "Starts with"
     settingsCategoriesSection = "Categories & rules"
+    settingsCategoriesSectionSubtitle = "Auto-sort mail by your own rules"
     settingsNoCategories = "No categories yet — add one to auto-sort mail by sender, subject, or body."
     settingsAppearanceSection = "Appearance"
+    settingsAppearanceSectionSubtitle = "Light, dark, or automatic theme"
     settingsTheme = "Theme"
-    settingsThemeSystem = "System"
+    settingsThemeSystem = "Auto"
     settingsThemeLight = "Light"
     settingsThemeDark = "Dark"
+    settingsLanguageSection = "Language"
+    settingsLanguageSectionSubtitle = "The app's interface language"
+    settingsLanguage = "App language"
+    settingsMailSection = "Mail"
+    settingsMailSectionSubtitle = "Sync, swipe actions, categories & rules"
+    settingsAppearanceLanguageSection = "Appearance & language"
+    settingsAppearanceLanguageSectionSubtitle = "Theme and app language"
+    settingsPrivacySection = "Privacy"
+    settingsPrivacySectionSubtitle = "How Tapiz Mail handles your data"
+    settingsPrivacyParagraph1 = "Tapiz Mail has no backend server of its own. The app connects directly to your account's IMAP/SMTP server (Gmail, Outlook, your university mail, or any other) — your mail never passes through Tapiz Labs' servers or any third party."
+    settingsPrivacyParagraph2 = "Account credentials (passwords) are stored only locally on your device, in the system Android Keystore via encrypted storage — never in plain text, never in the app's database, and never sent anywhere except directly to your mail provider for authentication."
+    settingsPrivacyParagraph3 = "Messages, attachments, and settings (categories, rules, swipe actions) are stored locally in an on-device database for fast offline access. This data is never synced to any Tapiz server or cloud service — it stays on your phone."
+    settingsPrivacyParagraph4 = "The app collects no analytics or telemetry about your usage and shares no data with advertisers or third parties. The only network traffic is the direct IMAP/SMTP connection to the account you set up yourself."
+    settingsAboutSection = "About"
+    settingsAppName = "Tapiz Mail"
+    settingsAboutTagline = "An independent mail client — straight from your phone to your IMAP/SMTP account, no middleman."
+    settingsAboutVersion = "Version"
+    settingsAboutPlatform = "Platform"
+    settingsAboutAuthor = "Author"
+    settingsCopyrightTemplate = "© %s Tapiz Labs. All rights reserved."
+    settingsAppVersionTemplate = "Version %s"
 }
 
 val DeStrings = Strings().apply {
@@ -415,13 +619,34 @@ val DeStrings = Strings().apply {
     inboxAddAccount = "Konto hinzufügen"
     inboxToday = "Heute"
     inboxYesterday = "Gestern"
+    inboxChipInbox = "Posteingang"
+    inboxChipDrafts = "Entwürfe"
+    inboxChipTrash = "Papierkorb"
 
     composeNewMessage = "Neue Nachricht"
+    composeFrom = "Von"
     composeTo = "An"
     composeCc = "Cc"
     composeBcc = "Bcc"
     composeSubject = "Betreff"
     composeBodyPlaceholder = "Schreibe deine Nachricht…"
+    composeDiscardTitle = "Nachricht verwerfen?"
+    composeDiscardMessage = "Du kannst sie als Entwurf speichern und später fortsetzen, oder endgültig verwerfen."
+    composeSaveDraft = "Entwurf speichern"
+    composeDiscard = "Verwerfen"
+    composeCancel = "Abbrechen"
+
+    draftsTitle = "Entwürfe"
+    draftsEmpty = "Keine Entwürfe"
+    draftsEmptySubtext = "Unfertige Nachrichten werden hier aufbewahrt."
+    inboxDrafts = "Entwürfe"
+
+    searchPlaceholder = "Mail durchsuchen"
+    searchAllAccounts = "Alle Konten"
+    searchHasAttachment = "Mit Anhang"
+    searchHint = "Durchsuche deine gesamte synchronisierte Mail"
+    searchNoResults = "Keine Ergebnisse"
+    searchResultsCountTemplate = "%d Ergebnisse"
 
     detailReply = "Antworten"
     detailForward = "Weiterleiten"
@@ -440,18 +665,62 @@ val DeStrings = Strings().apply {
     settingsRemove = "Entfernen"
     settingsCancel = "Abbrechen"
     settingsSyncSection = "Synchronisierung"
+    settingsSyncSectionSubtitle = "Wie oft die App nach neuer Post sucht"
     settingsSyncIntervalLabel = "Auf neue Post prüfen alle"
     settingsSyncIntervalMinutesTemplate = "%d Min."
     settingsSwipeActionsSection = "Wischaktionen"
+    settingsSwipeActionsSectionSubtitle = "Was beim Wischen einer Nachricht nach links oder rechts passiert"
     settingsSwipeLeft = "Nach links wischen"
     settingsSwipeRight = "Nach rechts wischen"
+    swipeActionDelete = "Löschen"
+    swipeActionMarkRead = "Als gelesen markieren"
+    swipeActionMarkUnread = "Als ungelesen markieren"
+    swipeActionNone = "Keine"
+    categoryEditorNewTitle = "Neue Kategorie"
+    categoryEditorEditTitle = "Kategorie bearbeiten"
+    categoryEditorNameLabel = "Kategoriename"
+    categoryEditorMatchRulesLabel = "Zuordnungsregeln"
+    categoryEditorFieldLabel = "Feld"
+    categoryEditorMatchLabel = "Bedingung"
+    categoryEditorValueLabel = "Wert"
+    categoryEditorAddRule = "Regel hinzufügen"
+    categoryEditorSave = "Kategorie speichern"
+    ruleFieldSender = "Absender"
+    ruleFieldSubject = "Betreff"
+    ruleFieldBody = "Inhalt"
+    ruleTypeContains = "Enthält"
+    ruleTypeEquals = "Ist gleich"
+    ruleTypeStartsWith = "Beginnt mit"
     settingsCategoriesSection = "Kategorien & Regeln"
+    settingsCategoriesSectionSubtitle = "Post automatisch nach deinen eigenen Regeln sortieren"
     settingsNoCategories = "Noch keine Kategorien — füge eine hinzu, um Post automatisch nach Absender, Betreff oder Inhalt zu sortieren."
     settingsAppearanceSection = "Erscheinungsbild"
+    settingsAppearanceSectionSubtitle = "Helles, dunkles oder automatisches Design"
     settingsTheme = "Design"
-    settingsThemeSystem = "System"
+    settingsThemeSystem = "Auto"
     settingsThemeLight = "Hell"
     settingsThemeDark = "Dunkel"
+    settingsLanguageSection = "Sprache"
+    settingsLanguageSectionSubtitle = "Die Sprache der App-Oberfläche"
+    settingsLanguage = "App-Sprache"
+    settingsMailSection = "Mail"
+    settingsMailSectionSubtitle = "Synchronisierung, Swipe-Aktionen, Kategorien & Regeln"
+    settingsAppearanceLanguageSection = "Erscheinungsbild & Sprache"
+    settingsAppearanceLanguageSectionSubtitle = "Design und Sprache der App"
+    settingsPrivacySection = "Datenschutz"
+    settingsPrivacySectionSubtitle = "Wie Tapiz Mail mit deinen Daten umgeht"
+    settingsPrivacyParagraph1 = "Tapiz Mail hat keinen eigenen Backend-Server. Die App verbindet sich direkt mit dem IMAP/SMTP-Server deines Kontos (Gmail, Outlook, deine Universitäts-Mail oder jedes andere) — deine Post läuft nie über Server von Tapiz Labs oder Dritten."
+    settingsPrivacyParagraph2 = "Kontodaten (Passwörter) werden ausschließlich lokal auf deinem Gerät gespeichert, im System-Android-Keystore über verschlüsselten Speicher — nie im Klartext, nie in der Datenbank der App, und nie irgendwohin gesendet außer direkt an deinen Mail-Anbieter zur Authentifizierung."
+    settingsPrivacyParagraph3 = "Nachrichten, Anhänge und Einstellungen (Kategorien, Regeln, Swipe-Aktionen) werden lokal in einer Datenbank auf dem Gerät gespeichert, für schnellen Offline-Zugriff. Diese Daten werden nie mit einem Tapiz-Server oder Cloud-Dienst synchronisiert — sie bleiben auf deinem Telefon."
+    settingsPrivacyParagraph4 = "Die App sammelt keine Analyse- oder Telemetriedaten über deine Nutzung und teilt keine Daten mit Werbetreibenden oder Dritten. Der einzige Netzwerkverkehr ist die direkte IMAP/SMTP-Verbindung zu dem Konto, das du selbst eingerichtet hast."
+    settingsAboutSection = "Über die App"
+    settingsAppName = "Tapiz Mail"
+    settingsAboutTagline = "Ein unabhängiger Mail-Client — direkt von deinem Telefon zu deinem IMAP/SMTP-Konto, ohne Mittelsmann."
+    settingsAboutVersion = "Version"
+    settingsAboutPlatform = "Plattform"
+    settingsAboutAuthor = "Autor"
+    settingsCopyrightTemplate = "© %s Tapiz Labs. Alle Rechte vorbehalten."
+    settingsAppVersionTemplate = "Version %s"
 }
 
 val EsStrings = Strings().apply {
@@ -517,13 +786,34 @@ val EsStrings = Strings().apply {
     inboxAddAccount = "Agregar cuenta"
     inboxToday = "Hoy"
     inboxYesterday = "Ayer"
+    inboxChipInbox = "Bandeja"
+    inboxChipDrafts = "Borradores"
+    inboxChipTrash = "Papelera"
 
     composeNewMessage = "Nuevo mensaje"
+    composeFrom = "De"
     composeTo = "Para"
     composeCc = "Cc"
     composeBcc = "Cco"
     composeSubject = "Asunto"
     composeBodyPlaceholder = "Escribe tu mensaje…"
+    composeDiscardTitle = "¿Descartar mensaje?"
+    composeDiscardMessage = "Puedes guardarlo como borrador y continuar más tarde, o descartarlo definitivamente."
+    composeSaveDraft = "Guardar borrador"
+    composeDiscard = "Descartar"
+    composeCancel = "Cancelar"
+
+    draftsTitle = "Borradores"
+    draftsEmpty = "Sin borradores"
+    draftsEmptySubtext = "Los mensajes sin terminar se guardan aquí."
+    inboxDrafts = "Borradores"
+
+    searchPlaceholder = "Buscar correo"
+    searchAllAccounts = "Todas las cuentas"
+    searchHasAttachment = "Con adjunto"
+    searchHint = "Busca en todo tu correo sincronizado"
+    searchNoResults = "Sin resultados"
+    searchResultsCountTemplate = "%d resultados"
 
     detailReply = "Responder"
     detailForward = "Reenviar"
@@ -542,18 +832,62 @@ val EsStrings = Strings().apply {
     settingsRemove = "Eliminar"
     settingsCancel = "Cancelar"
     settingsSyncSection = "Sincronización"
+    settingsSyncSectionSubtitle = "Con qué frecuencia la app busca correo nuevo"
     settingsSyncIntervalLabel = "Buscar correo nuevo cada"
     settingsSyncIntervalMinutesTemplate = "%d min"
     settingsSwipeActionsSection = "Acciones de deslizamiento"
+    settingsSwipeActionsSectionSubtitle = "Qué ocurre al deslizar un mensaje a la izquierda o derecha"
     settingsSwipeLeft = "Deslizar a la izquierda"
     settingsSwipeRight = "Deslizar a la derecha"
+    swipeActionDelete = "Eliminar"
+    swipeActionMarkRead = "Marcar como leído"
+    swipeActionMarkUnread = "Marcar como no leído"
+    swipeActionNone = "Ninguna"
+    categoryEditorNewTitle = "Nueva categoría"
+    categoryEditorEditTitle = "Editar categoría"
+    categoryEditorNameLabel = "Nombre de la categoría"
+    categoryEditorMatchRulesLabel = "Reglas de coincidencia"
+    categoryEditorFieldLabel = "Campo"
+    categoryEditorMatchLabel = "Condición"
+    categoryEditorValueLabel = "Valor"
+    categoryEditorAddRule = "Agregar regla"
+    categoryEditorSave = "Guardar categoría"
+    ruleFieldSender = "Remitente"
+    ruleFieldSubject = "Asunto"
+    ruleFieldBody = "Contenido"
+    ruleTypeContains = "Contiene"
+    ruleTypeEquals = "Es igual a"
+    ruleTypeStartsWith = "Comienza con"
     settingsCategoriesSection = "Categorías y reglas"
+    settingsCategoriesSectionSubtitle = "Ordena el correo automáticamente según tus propias reglas"
     settingsNoCategories = "Aún no hay categorías — agrega una para ordenar automáticamente el correo por remitente, asunto o contenido."
     settingsAppearanceSection = "Apariencia"
+    settingsAppearanceSectionSubtitle = "Tema claro, oscuro o automático"
     settingsTheme = "Tema"
-    settingsThemeSystem = "Sistema"
+    settingsThemeSystem = "Auto"
     settingsThemeLight = "Claro"
     settingsThemeDark = "Oscuro"
+    settingsLanguageSection = "Idioma"
+    settingsLanguageSectionSubtitle = "El idioma de la interfaz de la app"
+    settingsLanguage = "Idioma de la app"
+    settingsMailSection = "Correo"
+    settingsMailSectionSubtitle = "Sincronización, acciones de deslizamiento, categorías y reglas"
+    settingsAppearanceLanguageSection = "Apariencia e idioma"
+    settingsAppearanceLanguageSectionSubtitle = "Tema e idioma de la app"
+    settingsPrivacySection = "Privacidad"
+    settingsPrivacySectionSubtitle = "Cómo Tapiz Mail maneja tus datos"
+    settingsPrivacyParagraph1 = "Tapiz Mail no tiene servidor backend propio. La app se conecta directamente al servidor IMAP/SMTP de tu cuenta (Gmail, Outlook, tu correo universitario o cualquier otro) — tu correo nunca pasa por servidores de Tapiz Labs ni de terceros."
+    settingsPrivacyParagraph2 = "Las credenciales de la cuenta (contraseñas) se guardan solo localmente en tu dispositivo, en el Keystore de Android mediante almacenamiento cifrado — nunca en texto plano, nunca en la base de datos de la app, y nunca se envían a ningún sitio salvo directamente a tu proveedor de correo para autenticación."
+    settingsPrivacyParagraph3 = "Los mensajes, adjuntos y ajustes (categorías, reglas, acciones de deslizamiento) se guardan localmente en una base de datos del dispositivo para acceso rápido sin conexión. Estos datos nunca se sincronizan con ningún servidor de Tapiz ni servicio en la nube — permanecen en tu teléfono."
+    settingsPrivacyParagraph4 = "La app no recopila análisis ni telemetría sobre tu uso y no comparte datos con anunciantes ni terceros. El único tráfico de red es la conexión IMAP/SMTP directa a la cuenta que configuraste tú mismo."
+    settingsAboutSection = "Acerca de"
+    settingsAppName = "Tapiz Mail"
+    settingsAboutTagline = "Un cliente de correo independiente — directo desde tu teléfono a tu cuenta IMAP/SMTP, sin intermediarios."
+    settingsAboutVersion = "Versión"
+    settingsAboutPlatform = "Plataforma"
+    settingsAboutAuthor = "Autor"
+    settingsCopyrightTemplate = "© %s Tapiz Labs. Todos los derechos reservados."
+    settingsAppVersionTemplate = "Versión %s"
 }
 
 val FrStrings = Strings().apply {
@@ -619,13 +953,34 @@ val FrStrings = Strings().apply {
     inboxAddAccount = "Ajouter un compte"
     inboxToday = "Aujourd'hui"
     inboxYesterday = "Hier"
+    inboxChipInbox = "Boîte de réception"
+    inboxChipDrafts = "Brouillons"
+    inboxChipTrash = "Corbeille"
 
     composeNewMessage = "Nouveau message"
+    composeFrom = "De"
     composeTo = "À"
     composeCc = "Cc"
     composeBcc = "Cci"
     composeSubject = "Objet"
     composeBodyPlaceholder = "Écris ton message…"
+    composeDiscardTitle = "Abandonner le message ?"
+    composeDiscardMessage = "Tu peux l'enregistrer comme brouillon et continuer plus tard, ou l'abandonner définitivement."
+    composeSaveDraft = "Enregistrer le brouillon"
+    composeDiscard = "Abandonner"
+    composeCancel = "Annuler"
+
+    draftsTitle = "Brouillons"
+    draftsEmpty = "Aucun brouillon"
+    draftsEmptySubtext = "Les messages inachevés sont conservés ici."
+    inboxDrafts = "Brouillons"
+
+    searchPlaceholder = "Rechercher dans les mails"
+    searchAllAccounts = "Tous les comptes"
+    searchHasAttachment = "Avec pièce jointe"
+    searchHint = "Recherche dans tous tes mails synchronisés"
+    searchNoResults = "Aucun résultat"
+    searchResultsCountTemplate = "%d résultats"
 
     detailReply = "Répondre"
     detailForward = "Transférer"
@@ -644,18 +999,62 @@ val FrStrings = Strings().apply {
     settingsRemove = "Supprimer"
     settingsCancel = "Annuler"
     settingsSyncSection = "Synchronisation"
+    settingsSyncSectionSubtitle = "Fréquence de vérification du nouveau courrier"
     settingsSyncIntervalLabel = "Vérifier le nouveau courrier toutes les"
     settingsSyncIntervalMinutesTemplate = "%d min"
     settingsSwipeActionsSection = "Actions de balayage"
+    settingsSwipeActionsSectionSubtitle = "Ce qui se passe en balayant un message à gauche ou à droite"
     settingsSwipeLeft = "Balayer à gauche"
     settingsSwipeRight = "Balayer à droite"
+    swipeActionDelete = "Supprimer"
+    swipeActionMarkRead = "Marquer comme lu"
+    swipeActionMarkUnread = "Marquer comme non lu"
+    swipeActionNone = "Aucune"
+    categoryEditorNewTitle = "Nouvelle catégorie"
+    categoryEditorEditTitle = "Modifier la catégorie"
+    categoryEditorNameLabel = "Nom de la catégorie"
+    categoryEditorMatchRulesLabel = "Règles de correspondance"
+    categoryEditorFieldLabel = "Champ"
+    categoryEditorMatchLabel = "Condition"
+    categoryEditorValueLabel = "Valeur"
+    categoryEditorAddRule = "Ajouter une règle"
+    categoryEditorSave = "Enregistrer la catégorie"
+    ruleFieldSender = "Expéditeur"
+    ruleFieldSubject = "Objet"
+    ruleFieldBody = "Contenu"
+    ruleTypeContains = "Contient"
+    ruleTypeEquals = "Est égal à"
+    ruleTypeStartsWith = "Commence par"
     settingsCategoriesSection = "Catégories et règles"
+    settingsCategoriesSectionSubtitle = "Trie automatiquement le courrier selon tes propres règles"
     settingsNoCategories = "Aucune catégorie pour l'instant — ajoutes-en une pour trier automatiquement le courrier par expéditeur, objet ou contenu."
     settingsAppearanceSection = "Apparence"
+    settingsAppearanceSectionSubtitle = "Thème clair, sombre ou automatique"
     settingsTheme = "Thème"
-    settingsThemeSystem = "Système"
+    settingsThemeSystem = "Auto"
     settingsThemeLight = "Clair"
     settingsThemeDark = "Sombre"
+    settingsLanguageSection = "Langue"
+    settingsLanguageSectionSubtitle = "La langue de l'interface de l'application"
+    settingsLanguage = "Langue de l'application"
+    settingsMailSection = "Mail"
+    settingsMailSectionSubtitle = "Synchronisation, actions de balayage, catégories et règles"
+    settingsAppearanceLanguageSection = "Apparence et langue"
+    settingsAppearanceLanguageSectionSubtitle = "Thème et langue de l'application"
+    settingsPrivacySection = "Confidentialité"
+    settingsPrivacySectionSubtitle = "Comment Tapiz Mail traite tes données"
+    settingsPrivacyParagraph1 = "Tapiz Mail n'a pas de serveur backend propre. L'application se connecte directement au serveur IMAP/SMTP de ton compte (Gmail, Outlook, ta messagerie universitaire ou toute autre) — ton courrier ne passe jamais par les serveurs de Tapiz Labs ni par un tiers."
+    settingsPrivacyParagraph2 = "Les identifiants du compte (mots de passe) sont stockés uniquement en local sur ton appareil, dans le Keystore Android via un stockage chiffré — jamais en texte clair, jamais dans la base de données de l'application, et jamais envoyés ailleurs que directement à ton fournisseur de messagerie pour l'authentification."
+    settingsPrivacyParagraph3 = "Les messages, pièces jointes et réglages (catégories, règles, actions de balayage) sont stockés localement dans une base de données sur l'appareil pour un accès rapide hors ligne. Ces données ne sont jamais synchronisées avec un serveur Tapiz ou un service cloud — elles restent sur ton téléphone."
+    settingsPrivacyParagraph4 = "L'application ne collecte aucune donnée d'analyse ni de télémétrie sur ton utilisation et ne partage aucune donnée avec des annonceurs ou des tiers. Le seul trafic réseau est la connexion IMAP/SMTP directe vers le compte que tu as toi-même configuré."
+    settingsAboutSection = "À propos"
+    settingsAppName = "Tapiz Mail"
+    settingsAboutTagline = "Un client mail indépendant — directement de ton téléphone vers ton compte IMAP/SMTP, sans intermédiaire."
+    settingsAboutVersion = "Version"
+    settingsAboutPlatform = "Plateforme"
+    settingsAboutAuthor = "Auteur"
+    settingsCopyrightTemplate = "© %s Tapiz Labs. Tous droits réservés."
+    settingsAppVersionTemplate = "Version %s"
 }
 
 fun stringsFor(language: AppLanguage): Strings = when (language) {
