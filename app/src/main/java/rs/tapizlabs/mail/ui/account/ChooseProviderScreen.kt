@@ -1,6 +1,7 @@
 package rs.tapizlabs.mail.ui.account
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,6 +27,9 @@ import androidx.compose.ui.unit.dp
 import rs.tapizlabs.mail.ui.components.MailCard
 import rs.tapizlabs.mail.ui.components.MailIconChip
 import rs.tapizlabs.mail.ui.components.MailSectionHeader
+import rs.tapizlabs.mail.ui.components.ProviderBadge
+import rs.tapizlabs.mail.ui.components.ProviderBrandColors
+import rs.tapizlabs.mail.ui.i18n.LocalStrings
 import rs.tapizlabs.mail.ui.theme.AppColors
 import androidx.compose.material.icons.filled.CheckCircle
 
@@ -40,11 +44,12 @@ import androidx.compose.material.icons.filled.CheckCircle
 @Composable
 fun ChooseProviderScreen(onBack: () -> Unit, onProviderChosen: (MailProvider) -> Unit) {
     val colors = AppColors
+    val strings = LocalStrings.current
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = "Add account", color = colors.textPrimary) },
+                title = { Text(text = strings.chooseProviderTitle, color = colors.textPrimary) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = null, tint = colors.textPrimary)
@@ -62,20 +67,23 @@ fun ChooseProviderScreen(onBack: () -> Unit, onProviderChosen: (MailProvider) ->
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            MailSectionHeader(title = "Choose a provider", icon = Icons.Outlined.Mail)
+            MailSectionHeader(title = strings.chooseProviderSectionHeader, icon = Icons.Outlined.Mail)
             ProviderOptionRow(
                 title = "Gmail",
-                description = "imap.gmail.com · smtp.gmail.com",
+                description = strings.providerGmailDescription,
+                badge = { ProviderBadge(letter = "G", color = ProviderBrandColors.Gmail, size = 40.dp) },
                 onClick = { onProviderChosen(MailProvider.GMAIL) },
             )
             ProviderOptionRow(
                 title = "Outlook",
-                description = "outlook.office365.com · smtp.office365.com",
+                description = strings.providerOutlookDescription,
+                badge = { ProviderBadge(letter = "O", color = ProviderBrandColors.Outlook, size = 40.dp) },
                 onClick = { onProviderChosen(MailProvider.OUTLOOK) },
             )
             ProviderOptionRow(
-                title = "Custom (IMAP/SMTP)",
-                description = "Any other provider — including university/school mail",
+                title = strings.providerCustomTitle,
+                description = strings.providerCustomDescription,
+                badge = { MailIconChip(icon = Icons.Outlined.Mail) },
                 onClick = { onProviderChosen(MailProvider.CUSTOM) },
             )
         }
@@ -83,7 +91,7 @@ fun ChooseProviderScreen(onBack: () -> Unit, onProviderChosen: (MailProvider) ->
 }
 
 @Composable
-private fun ProviderOptionRow(title: String, description: String, onClick: () -> Unit) {
+private fun ProviderOptionRow(title: String, description: String, badge: @Composable () -> Unit, onClick: () -> Unit) {
     val colors = AppColors
     MailCard(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -91,7 +99,7 @@ private fun ProviderOptionRow(title: String, description: String, onClick: () ->
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            MailIconChip(icon = Icons.Outlined.Mail)
+            badge()
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(text = title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold)
                 Text(text = description, color = colors.textMuted, style = MaterialTheme.typography.bodySmall)

@@ -5,6 +5,7 @@ import android.webkit.WebView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -50,10 +50,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import java.io.File
-import java.text.DateFormat
-import java.util.Date
-import rs.tapizlabs.mail.ui.components.MailGhostButton
-import rs.tapizlabs.mail.ui.components.MailPrimaryButton
+import rs.tapizlabs.mail.ui.i18n.LocalStrings
+import rs.tapizlabs.mail.ui.i18n.Strings
 import rs.tapizlabs.mail.ui.theme.AppColors
 
 /**
@@ -74,22 +72,20 @@ fun MailDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val colors = AppColors
+    val strings = LocalStrings.current
 
     Scaffold(
         modifier = modifier,
         containerColor = colors.canvasTop,
         topBar = {
-            DetailTopBar(
-                isStarred = uiState.isStarred,
-                onBack = onBack,
-                onToggleStar = { viewModel.toggleStar(uiState.isStarred) },
-            )
+            DetailTopBar(onBack = onBack)
         },
         bottomBar = {
             if (!uiState.notFound) {
                 DetailBottomBar(
                     onReply = { onReply(uiState.messageId) },
                     onForward = { onForward(uiState.messageId) },
+                    strings = strings,
                 )
             }
         },
@@ -102,7 +98,7 @@ fun MailDetailScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = "Message not found",
+                    text = strings.detailMessageNotFound,
                     style = MaterialTheme.typography.bodyMedium.copy(color = colors.textMuted),
                 )
             }
@@ -114,27 +110,26 @@ fun MailDetailScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .padding(horizontal = 20.dp),
         ) {
+            MessageHeader(
+                fromName = uiState.fromName,
+                fromAddress = uiState.fromAddress,
+                toAddresses = uiState.toAddresses,
+                isStarred = uiState.isStarred,
+                onToggleStar = { viewModel.toggleStar(uiState.isStarred) },
+            )
+
+            Spacer(Modifier.height(16.dp))
+
             Text(
-                text = uiState.subject.ifBlank { "(no subject)" },
+                text = uiState.subject.ifBlank { strings.detailNoSubject },
                 style = MaterialTheme.typography.titleLarge.copy(
                     color = colors.textPrimary,
                     fontWeight = FontWeight.Bold,
                 ),
             )
 
-            Spacer(Modifier.height(12.dp))
-
-            MessageHeader(
-                fromName = uiState.fromName,
-                fromAddress = uiState.fromAddress,
-                toAddresses = uiState.toAddresses,
-                sentAt = uiState.sentAt,
-            )
-
-            Spacer(Modifier.height(16.dp))
-            HorizontalDivider(color = colors.stroke.copy(alpha = 0.5f))
             Spacer(Modifier.height(16.dp))
 
             MessageBody(bodyHtml = uiState.bodyHtml, bodyPlain = uiState.bodyPlain)
@@ -142,7 +137,7 @@ fun MailDetailScreen(
             if (uiState.attachments.isNotEmpty()) {
                 Spacer(Modifier.height(20.dp))
                 Text(
-                    text = "Attachments (${uiState.attachments.size})",
+                    text = strings.detailAttachmentsCount(uiState.attachments.size),
                     style = MaterialTheme.typography.titleSmall.copy(
                         color = colors.textPrimary,
                         fontWeight = FontWeight.SemiBold,
@@ -159,54 +154,69 @@ fun MailDetailScreen(
 }
 
 @Composable
-private fun DetailTopBar(isStarred: Boolean, onBack: () -> Unit, onToggleStar: () -> Unit) {
+private fun DetailTopBar(onBack: () -> Unit) {
     val colors = AppColors
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onBack) {
             Icon(
                 imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                 contentDescription = "Back",
-                tint = colors.textPrimary,
-            )
-        }
-        Spacer(Modifier.weight(1f))
-        IconButton(onClick = onToggleStar) {
-            Icon(
-                imageVector = if (isStarred) Icons.Outlined.Star else Icons.Outlined.StarBorder,
-                contentDescription = if (isStarred) "Unstar" else "Star",
-                tint = if (isStarred) colors.amber else colors.textMuted,
+                tint = colors.textMuted,
             )
         }
     }
 }
 
 @Composable
-private fun DetailBottomBar(onReply: () -> Unit, onForward: () -> Unit) {
+private fun DetailBottomBar(onReply: () -> Unit, onForward: () -> Unit, strings: Strings) {
     val colors = AppColors
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.card)
+            .background(colors.canvasTop)
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        MailGhostButton(
-            text = "Forward",
+        PastelActionButton(
+            text = strings.detailReply,
+            icon = Icons.AutoMirrored.Outlined.Send,
+            onClick = onReply,
+            modifier = Modifier.weight(1f),
+        )
+        PastelActionButton(
+            text = strings.detailForward,
             icon = Icons.AutoMirrored.Outlined.Forward,
             onClick = onForward,
             modifier = Modifier.weight(1f),
         )
-        MailPrimaryButton(
-            text = "Reply",
-            onClick = onReply,
-            icon = Icons.AutoMirrored.Outlined.Send,
-            modifier = Modifier.weight(1f),
+    }
+}
+
+/** Reference: Reply/Forward are both the same pastel-bg pill (cardSubtle/accentSoft),
+ * not a primary+ghost pair — 50/50 split with a small corner-arrow icon each. */
+@Composable
+private fun PastelActionButton(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = AppColors
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(colors.cardSubtle)
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(imageVector = icon, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(14.dp))
+        Spacer(Modifier.width(7.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge.copy(color = colors.textPrimary),
         )
     }
 }
@@ -216,14 +226,15 @@ private fun MessageHeader(
     fromName: String,
     fromAddress: String,
     toAddresses: List<String>,
-    sentAt: Long,
+    isStarred: Boolean,
+    onToggleStar: () -> Unit,
 ) {
     val colors = AppColors
-    Row(verticalAlignment = Alignment.Top) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
+                .size(44.dp)
+                .clip(RoundedCornerShape(14.dp))
                 .background(colors.accentSoft),
             contentAlignment = Alignment.Center,
         ) {
@@ -242,12 +253,8 @@ private fun MessageHeader(
                 text = fromName.ifBlank { fromAddress },
                 style = MaterialTheme.typography.bodyMedium.copy(
                     color = colors.textPrimary,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                 ),
-            )
-            Text(
-                text = fromAddress,
-                style = MaterialTheme.typography.bodySmall.copy(color = colors.textMuted),
             )
             if (toAddresses.isNotEmpty()) {
                 Text(
@@ -256,10 +263,13 @@ private fun MessageHeader(
                 )
             }
         }
-        Text(
-            text = formatSentAt(sentAt),
-            style = MaterialTheme.typography.labelSmall.copy(color = colors.textMuted),
-        )
+        IconButton(onClick = onToggleStar) {
+            Icon(
+                imageVector = if (isStarred) Icons.Outlined.Star else Icons.Outlined.StarBorder,
+                contentDescription = if (isStarred) "Unstar" else "Star",
+                tint = if (isStarred) colors.amber else colors.textMuted,
+            )
+        }
     }
 }
 
@@ -375,9 +385,6 @@ private fun AttachmentRow(attachment: AttachmentUi) {
         }
     }
 }
-
-private fun formatSentAt(epochMillis: Long): String =
-    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(epochMillis))
 
 private fun formatSize(bytes: Long): String = when {
     bytes >= 1_048_576 -> "%.1f MB".format(bytes / 1_048_576.0)

@@ -21,6 +21,7 @@ import rs.tapizlabs.mail.data.local.entity.RuleMatchField
 import rs.tapizlabs.mail.data.local.entity.RuleMatchType
 import rs.tapizlabs.mail.data.local.entity.SwipeAction
 import rs.tapizlabs.mail.data.local.entity.SwipeActionConfigEntity
+import rs.tapizlabs.mail.core.local.PrefsStore
 import rs.tapizlabs.mail.data.repository.AccountRepository
 import rs.tapizlabs.mail.security.CredentialStore
 import rs.tapizlabs.mail.sync.SyncScheduler
@@ -42,16 +43,16 @@ class SettingsViewModel @Inject constructor(
     private val accountRepository: AccountRepository,
     private val credentialStore: CredentialStore,
     private val syncScheduler: SyncScheduler,
+    private val prefsStore: PrefsStore,
 ) : ViewModel() {
 
     private val _selectedAccountId = MutableStateFlow<String?>(null)
-    private val _themePref = MutableStateFlow(ThemePref.System)
 
     val state: StateFlow<SettingsUiState> = combine(
         accountRepository.observeAccounts(),
         accountRepository.observeAllCategories(),
         _selectedAccountId,
-        _themePref,
+        prefsStore.themePref,
     ) { accounts, categories, selectedId, themePref ->
         val resolvedSelectedId = selectedId ?: accounts.firstOrNull()?.id
         Quadruple(accounts, categories, resolvedSelectedId, themePref)
@@ -73,7 +74,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setTheme(pref: ThemePref) {
-        _themePref.value = pref
+        viewModelScope.launch { prefsStore.setThemePref(pref) }
     }
 
     /** Applies a new sync interval to an account and reschedules its background sync. */

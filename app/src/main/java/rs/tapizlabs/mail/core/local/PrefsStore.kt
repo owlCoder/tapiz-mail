@@ -9,18 +9,20 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import rs.tapizlabs.mail.ui.i18n.AppLanguage
+import rs.tapizlabs.mail.ui.theme.ThemePref
 import javax.inject.Inject
 import javax.inject.Singleton
 
 private val Context.prefsDataStore by preferencesDataStore("mail_prefs")
 
-/** App-wide DataStore-backed preferences (currently just the language pref; the natural
- * home for future simple prefs like sync-interval/theme, rather than a second DataStore
- * file — see the sibling apps' `core/local/PrefsStore.kt` for the same convention). */
+/** App-wide DataStore-backed preferences (language + theme; the natural home for future
+ * simple prefs like sync-interval, rather than a second DataStore file — see the sibling
+ * apps' `core/local/PrefsStore.kt` for the same convention). */
 @Singleton
 class PrefsStore @Inject constructor(@ApplicationContext private val ctx: Context) {
 
     private val KEY_LANGUAGE = stringPreferencesKey("app_language")
+    private val KEY_THEME = stringPreferencesKey("app_theme")
 
     val languagePref: Flow<AppLanguage> = ctx.prefsDataStore.data.map { prefs ->
         when (prefs[KEY_LANGUAGE]) {
@@ -40,4 +42,24 @@ class PrefsStore @Inject constructor(@ApplicationContext private val ctx: Contex
     }
 
     suspend fun languageBlocking(): AppLanguage = languagePref.first()
+
+    val themePref: Flow<ThemePref> = ctx.prefsDataStore.data.map { prefs ->
+        when (prefs[KEY_THEME]) {
+            "light" -> ThemePref.Light
+            "dark" -> ThemePref.Dark
+            else -> ThemePref.System
+        }
+    }
+
+    suspend fun setThemePref(pref: ThemePref) {
+        ctx.prefsDataStore.edit { prefs ->
+            prefs[KEY_THEME] = when (pref) {
+                ThemePref.System -> "system"
+                ThemePref.Light -> "light"
+                ThemePref.Dark -> "dark"
+            }
+        }
+    }
+
+    suspend fun themeBlocking(): ThemePref = themePref.first()
 }

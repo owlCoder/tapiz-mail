@@ -3,8 +3,10 @@ package rs.tapizlabs.mail.ui.compose
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,17 +18,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.InsertDriveFile
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.Send
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,18 +46,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import rs.tapizlabs.mail.ui.components.MailPrimaryButton
+import rs.tapizlabs.mail.ui.i18n.LocalStrings
+import rs.tapizlabs.mail.ui.i18n.Strings
 import rs.tapizlabs.mail.ui.theme.AppColors
 
 /**
- * Compose screen — handles New/Reply/Forward, driven by nav args read inside
- * [ComposeViewModel] (`mode` + `messageId` via `SavedStateHandle`, see that file). This
- * composable itself takes no mode params; the nav-graph agent passes them as route arguments.
+ * Compose screen — matches design_handoff_tapiz_mail_android/design-reference.html's
+ * "Compose" screen: X (close) left, "New message" centered title, filled circular send
+ * button right; From/To/Subject stacked rows; free-text body; bottom attach/camera/image
+ * toolbar. Handles New/Reply/Forward, driven by nav args read inside [ComposeViewModel]
+ * (`mode` + `messageId` via `SavedStateHandle`).
  *
  * @param onSent invoked once the message finishes sending successfully (navigate back).
  * @param onBack invoked on the back/close action without sending.
@@ -66,6 +75,7 @@ fun ComposeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val colors = AppColors
+    val strings = LocalStrings.current
     val context = LocalContext.current
 
     if (uiState.sent) {
@@ -96,23 +106,43 @@ fun ComposeScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 8.dp),
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = onBack, modifier = Modifier.size(28.dp)) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                        imageVector = Icons.Outlined.Close,
                         contentDescription = "Close",
-                        tint = colors.textPrimary,
+                        tint = colors.textMuted,
                     )
                 }
                 Spacer(Modifier.weight(1f))
-                IconButton(onClick = { attachmentPicker.launch(arrayOf("*/*")) }) {
-                    Icon(
-                        imageVector = Icons.Outlined.AttachFile,
-                        contentDescription = "Add attachment",
-                        tint = colors.textMuted,
-                    )
+                Text(
+                    text = strings.composeNewMessage,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        color = colors.textPrimary,
+                        fontWeight = FontWeight.Bold,
+                    ),
+                )
+                Spacer(Modifier.weight(1f))
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(if (uiState.isSending || uiState.to.isBlank()) colors.primary.copy(alpha = 0.4f) else colors.primary)
+                        .clickable(enabled = !uiState.isSending && uiState.to.isNotBlank(), onClick = viewModel::send),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (uiState.isSending) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = colors.onPrimary, strokeWidth = 2.dp)
+                    } else {
+                        Icon(
+                            imageVector = Icons.Outlined.Send,
+                            contentDescription = "Send",
+                            tint = colors.onPrimary,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
                 }
             }
         },
@@ -120,16 +150,18 @@ fun ComposeScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.End,
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(22.dp),
             ) {
-                MailPrimaryButton(
-                    text = "Send",
-                    icon = Icons.AutoMirrored.Outlined.Send,
-                    onClick = viewModel::send,
-                    enabled = !uiState.isSending && uiState.to.isNotBlank(),
-                    loading = uiState.isSending,
-                )
+                IconButton(onClick = { attachmentPicker.launch(arrayOf("*/*")) }, modifier = Modifier.size(24.dp)) {
+                    Icon(imageVector = Icons.Outlined.AttachFile, contentDescription = "Add attachment", tint = colors.textMuted)
+                }
+                IconButton(onClick = { attachmentPicker.launch(arrayOf("image/*")) }, modifier = Modifier.size(24.dp)) {
+                    Icon(imageVector = Icons.Outlined.PhotoCamera, contentDescription = "Add photo", tint = colors.textMuted)
+                }
+                IconButton(onClick = { attachmentPicker.launch(arrayOf("image/*")) }, modifier = Modifier.size(24.dp)) {
+                    Icon(imageVector = Icons.Outlined.Image, contentDescription = "Add image", tint = colors.textMuted)
+                }
             }
         },
     ) { padding ->
@@ -138,7 +170,7 @@ fun ComposeScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 20.dp),
         ) {
             RecipientFields(
                 to = uiState.to,
@@ -149,9 +181,10 @@ fun ComposeScreen(
                 onCcChange = viewModel::updateCc,
                 onBccChange = viewModel::updateBcc,
                 onToggleCcBcc = viewModel::toggleCcBcc,
+                strings = strings,
             )
 
-            HorizontalDivider(color = colors.stroke.copy(alpha = 0.5f))
+            HorizontalDivider(color = colors.stroke)
 
             OutlinedTextField(
                 value = uiState.subject,
@@ -159,7 +192,7 @@ fun ComposeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 52.dp),
-                placeholder = { Text("Subject") },
+                placeholder = { Text(strings.composeSubject) },
                 singleLine = true,
                 colors = plainFieldColors(),
             )
@@ -189,7 +222,7 @@ fun ComposeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 200.dp),
-                placeholder = { Text("Write your message…") },
+                placeholder = { Text(strings.composeBodyPlaceholder) },
                 colors = plainFieldColors(),
             )
 
@@ -216,6 +249,7 @@ private fun RecipientFields(
     onCcChange: (String) -> Unit,
     onBccChange: (String) -> Unit,
     onToggleCcBcc: () -> Unit,
+    strings: Strings,
 ) {
     val colors = AppColors
 
@@ -226,7 +260,7 @@ private fun RecipientFields(
             modifier = Modifier
                 .weight(1f)
                 .heightIn(min = 52.dp),
-            placeholder = { Text("To") },
+            placeholder = { Text(strings.composeTo) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.None,
@@ -250,7 +284,7 @@ private fun RecipientFields(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 52.dp),
-            placeholder = { Text("Cc") },
+            placeholder = { Text(strings.composeCc) },
             singleLine = true,
             colors = plainFieldColors(),
         )
@@ -260,7 +294,7 @@ private fun RecipientFields(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 52.dp),
-            placeholder = { Text("Bcc") },
+            placeholder = { Text(strings.composeBcc) },
             singleLine = true,
             colors = plainFieldColors(),
         )
@@ -305,7 +339,7 @@ private fun AttachmentChip(name: String, onRemove: () -> Unit) {
 @Composable
 private fun plainFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedBorderColor = AppColors.primary,
-    unfocusedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
+    unfocusedBorderColor = Color.Transparent,
     focusedContainerColor = AppColors.cardSubtle,
     unfocusedContainerColor = AppColors.cardSubtle,
     cursorColor = AppColors.primary,

@@ -49,6 +49,8 @@ import rs.tapizlabs.mail.ui.components.MailPrimaryButton
 import rs.tapizlabs.mail.ui.components.MailPulseSpinner
 import rs.tapizlabs.mail.ui.components.MailSectionHeader
 import rs.tapizlabs.mail.ui.components.MailTextField
+import rs.tapizlabs.mail.ui.i18n.LocalStrings
+import rs.tapizlabs.mail.ui.i18n.Strings
 import rs.tapizlabs.mail.ui.theme.AppColors
 
 /**
@@ -66,13 +68,14 @@ fun AddAccountScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val colors = AppColors
+    val strings = LocalStrings.current
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = if (state.isEditMode) "Edit account" else "Account details",
+                        text = if (state.isEditMode) strings.addAccountTitleEdit else strings.addAccountTitleNew,
                         color = colors.textPrimary,
                     )
                 },
@@ -94,11 +97,11 @@ fun AddAccountScreen(
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            AccountDetailsForm(state = state, viewModel = viewModel)
+            AccountDetailsForm(state = state, viewModel = viewModel, strings = strings)
 
             Spacer(Modifier.height(4.dp))
 
-            ConnectionSection(state = state, onTest = viewModel::testConnection)
+            ConnectionSection(state = state, onTest = viewModel::testConnection, strings = strings)
 
             Spacer(Modifier.height(4.dp))
 
@@ -107,7 +110,7 @@ fun AddAccountScreen(
             }
 
             MailPrimaryButton(
-                text = if (state.saving) "Saving…" else "Save account",
+                text = if (state.saving) strings.savingAccount else strings.saveAccount,
                 icon = Icons.Outlined.Save,
                 onClick = { viewModel.save { onSaved() } },
                 enabled = state.canSave,
@@ -121,44 +124,44 @@ fun AddAccountScreen(
 }
 
 @Composable
-private fun AccountDetailsForm(state: AddAccountUiState, viewModel: AddAccountViewModel) {
+private fun AccountDetailsForm(state: AddAccountUiState, viewModel: AddAccountViewModel, strings: Strings) {
     val isCustom = state.provider == MailProvider.CUSTOM
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        MailSectionHeader(title = "Account details", icon = Icons.Outlined.AlternateEmail)
+        MailSectionHeader(title = strings.accountDetailsSectionHeader, icon = Icons.Outlined.AlternateEmail)
 
         MailTextField(
             value = state.displayName,
             onValueChange = viewModel::updateDisplayName,
-            label = "Display name",
+            label = strings.fieldDisplayName,
             leadingIcon = Icons.Outlined.Badge,
         )
         MailTextField(
             value = state.emailAddress,
             onValueChange = viewModel::updateEmailAddress,
-            label = "Email address",
+            label = strings.fieldEmailAddress,
             leadingIcon = Icons.Outlined.AlternateEmail,
             keyboardType = KeyboardType.Email,
         )
         MailTextField(
             value = state.username,
             onValueChange = viewModel::updateUsername,
-            label = "Username",
+            label = strings.fieldUsername,
             leadingIcon = Icons.Outlined.PersonOutline,
-            supportingText = "Usually the same as your email address",
+            supportingText = strings.fieldUsernameHint,
         )
         MailPasswordField(
             value = state.password,
             onValueChange = viewModel::updatePassword,
-            label = "Password",
+            label = strings.fieldPassword,
             imeAction = ImeAction.Next,
         )
 
         Spacer(Modifier.height(8.dp))
-        MailSectionHeader(title = "Incoming mail (IMAP)", icon = Icons.Outlined.Dns)
+        MailSectionHeader(title = strings.incomingMailSectionHeader, icon = Icons.Outlined.Dns)
         MailTextField(
             value = state.imapHost,
             onValueChange = viewModel::updateImapHost,
-            label = "IMAP host",
+            label = strings.fieldImapHost,
             leadingIcon = Icons.Outlined.Dns,
             enabled = isCustom || state.isEditMode,
         )
@@ -166,14 +169,14 @@ private fun AccountDetailsForm(state: AddAccountUiState, viewModel: AddAccountVi
             MailTextField(
                 value = state.imapPort,
                 onValueChange = viewModel::updateImapPort,
-                label = "Port",
+                label = strings.fieldPort,
                 leadingIcon = Icons.Outlined.Numbers,
                 keyboardType = KeyboardType.Number,
                 modifier = Modifier.weight(1f),
                 enabled = isCustom || state.isEditMode,
             )
             MailDropdownField(
-                label = "Security",
+                label = strings.fieldSecurity,
                 options = ConnectionSecurity.entries,
                 selected = state.imapSecurity,
                 optionLabel = { it.name },
@@ -183,11 +186,11 @@ private fun AccountDetailsForm(state: AddAccountUiState, viewModel: AddAccountVi
         }
 
         Spacer(Modifier.height(8.dp))
-        MailSectionHeader(title = "Outgoing mail (SMTP)", icon = Icons.AutoMirrored.Outlined.Send)
+        MailSectionHeader(title = strings.outgoingMailSectionHeader, icon = Icons.AutoMirrored.Outlined.Send)
         MailTextField(
             value = state.smtpHost,
             onValueChange = viewModel::updateSmtpHost,
-            label = "SMTP host",
+            label = strings.fieldSmtpHost,
             leadingIcon = Icons.Outlined.Dns,
             enabled = isCustom || state.isEditMode,
         )
@@ -195,14 +198,14 @@ private fun AccountDetailsForm(state: AddAccountUiState, viewModel: AddAccountVi
             MailTextField(
                 value = state.smtpPort,
                 onValueChange = viewModel::updateSmtpPort,
-                label = "Port",
+                label = strings.fieldPort,
                 leadingIcon = Icons.Outlined.Numbers,
                 keyboardType = KeyboardType.Number,
                 modifier = Modifier.weight(1f),
                 enabled = isCustom || state.isEditMode,
             )
             MailDropdownField(
-                label = "Security",
+                label = strings.fieldSecurity,
                 options = ConnectionSecurity.entries,
                 selected = state.smtpSecurity,
                 optionLabel = { it.name },
@@ -214,11 +217,11 @@ private fun AccountDetailsForm(state: AddAccountUiState, viewModel: AddAccountVi
 }
 
 @Composable
-private fun ConnectionSection(state: AddAccountUiState, onTest: () -> Unit) {
+private fun ConnectionSection(state: AddAccountUiState, onTest: () -> Unit, strings: Strings) {
     val colors = AppColors
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         MailGhostButton(
-            text = if (state.connectionTestState == ConnectionTestState.TESTING) "Testing…" else "Test connection",
+            text = if (state.connectionTestState == ConnectionTestState.TESTING) strings.testingConnection else strings.testConnection,
             icon = Icons.Outlined.NetworkCheck,
             onClick = onTest,
             enabled = state.connectionTestState != ConnectionTestState.TESTING,
@@ -228,16 +231,16 @@ private fun ConnectionSection(state: AddAccountUiState, onTest: () -> Unit) {
         when (state.connectionTestState) {
             ConnectionTestState.TESTING -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MailPulseSpinner(size = 22.dp)
-                Text(text = "Verifying settings…", color = colors.textMuted, style = MaterialTheme.typography.bodySmall)
+                Text(text = strings.verifyingSettings, color = colors.textMuted, style = MaterialTheme.typography.bodySmall)
             }
             ConnectionTestState.SUCCESS -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = colors.mint, modifier = Modifier.size(16.dp))
-                Text(text = "Connection verified", color = colors.mint, style = MaterialTheme.typography.bodySmall)
+                Text(text = strings.connectionVerified, color = colors.mint, style = MaterialTheme.typography.bodySmall)
             }
             ConnectionTestState.FAILED -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Filled.Error, contentDescription = null, tint = colors.coral, modifier = Modifier.size(16.dp))
                 Text(
-                    text = state.connectionError ?: "Connection failed",
+                    text = state.connectionError ?: strings.connectionFailed,
                     color = colors.coral,
                     style = MaterialTheme.typography.bodySmall,
                 )

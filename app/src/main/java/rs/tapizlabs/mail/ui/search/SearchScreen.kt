@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Search
@@ -43,11 +44,13 @@ import rs.tapizlabs.mail.ui.components.MessageListItem
 import rs.tapizlabs.mail.ui.model.AccountSummaryUi
 import rs.tapizlabs.mail.ui.theme.AppColors
 
-/** Search — its own bottom-nav tab. Debounced query against the local Room search
+/** Search — a push destination reached from Inbox's top-bar search icon (no bottom-nav
+ * tab in this app's IA). Debounced query against the local Room search
  * (`MessageDao.searchMessages`), plus simple filter chips (account, has-attachment). */
 @Composable
 fun SearchScreen(
     onOpenMessage: (messageId: String) -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
@@ -55,6 +58,15 @@ fun SearchScreen(
     val colors = AppColors
 
     Column(modifier = modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.padding(start = 4.dp, top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back", tint = colors.textPrimary)
+            }
+        }
+
         SearchField(
             query = uiState.query,
             onQueryChange = viewModel::updateQuery,

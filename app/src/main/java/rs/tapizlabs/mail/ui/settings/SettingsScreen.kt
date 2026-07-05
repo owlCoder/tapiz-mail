@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -52,6 +53,8 @@ import rs.tapizlabs.mail.ui.components.MailConfirmDialog
 import rs.tapizlabs.mail.ui.components.MailDropdownField
 import rs.tapizlabs.mail.ui.components.MailIconChip
 import rs.tapizlabs.mail.ui.components.MailSectionHeader
+import rs.tapizlabs.mail.ui.i18n.LocalStrings
+import rs.tapizlabs.mail.ui.i18n.Strings
 import rs.tapizlabs.mail.ui.theme.AppColors
 import rs.tapizlabs.mail.ui.theme.ThemePref
 
@@ -60,10 +63,12 @@ import rs.tapizlabs.mail.ui.theme.ThemePref
 fun SettingsScreen(
     onAddAccount: () -> Unit,
     onEditAccount: (accountId: String) -> Unit,
+    onBack: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val colors = AppColors
+    val strings = LocalStrings.current
 
     var accountPendingRemoval by remember { mutableStateOf<AccountEntity?>(null) }
     var showCategorySheet by remember { mutableStateOf(false) }
@@ -72,7 +77,12 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings", color = colors.textPrimary) },
+                title = { Text(strings.settingsTitle, color = colors.textPrimary) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = null, tint = colors.textPrimary)
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
@@ -91,18 +101,21 @@ fun SettingsScreen(
                 onAdd = onAddAccount,
                 onEdit = onEditAccount,
                 onRemove = { accountPendingRemoval = it },
+                strings = strings,
             )
 
             if (state.selectedAccount != null) {
                 SyncSection(
                     account = state.selectedAccount!!,
                     onIntervalSelected = { minutes -> viewModel.updateSyncInterval(state.selectedAccount!!, minutes) },
+                    strings = strings,
                 )
 
                 SwipeActionsSection(
                     leftAction = state.swipeConfig?.swipeLeftAction ?: SwipeAction.ARCHIVE,
                     rightAction = state.swipeConfig?.swipeRightAction ?: SwipeAction.DELETE,
                     onChange = { left, right -> viewModel.updateSwipeConfig(state.selectedAccount!!.id, left, right) },
+                    strings = strings,
                 )
             }
 
@@ -117,9 +130,10 @@ fun SettingsScreen(
                     showCategorySheet = true
                 },
                 onDelete = viewModel::deleteCategory,
+                strings = strings,
             )
 
-            ThemeSection(selected = state.themePref, onSelect = viewModel::setTheme)
+            ThemeSection(selected = state.themePref, onSelect = viewModel::setTheme, strings = strings)
 
             Spacer(Modifier.height(8.dp))
         }
@@ -127,10 +141,10 @@ fun SettingsScreen(
 
     MailConfirmDialog(
         visible = accountPendingRemoval != null,
-        title = "Remove account?",
-        message = "This deletes ${accountPendingRemoval?.emailAddress.orEmpty()} and stops syncing it. Locally cached mail is removed too.",
-        confirmLabel = "Remove",
-        cancelLabel = "Cancel",
+        title = strings.settingsRemoveAccountTitle,
+        message = strings.settingsRemoveAccountMessage(accountPendingRemoval?.emailAddress.orEmpty()),
+        confirmLabel = strings.settingsRemove,
+        cancelLabel = strings.settingsCancel,
         onConfirm = {
             accountPendingRemoval?.let(viewModel::removeAccount)
             accountPendingRemoval = null
@@ -153,6 +167,7 @@ private fun AccountsSection(
     onAdd: () -> Unit,
     onEdit: (String) -> Unit,
     onRemove: (AccountEntity) -> Unit,
+    strings: Strings,
 ) {
     val colors = AppColors
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -161,15 +176,15 @@ private fun AccountsSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            MailSectionHeader(title = "Accounts", icon = Icons.Outlined.AccountCircle)
+            MailSectionHeader(title = strings.settingsAccountsSection, icon = Icons.Outlined.AccountCircle)
             IconButton(onClick = onAdd) {
-                Icon(Icons.Filled.Add, contentDescription = "Add account", tint = colors.primary)
+                Icon(Icons.Filled.Add, contentDescription = strings.settingsAddAccount, tint = colors.primary)
             }
         }
 
         if (accounts.isEmpty()) {
             Text(
-                text = "No accounts yet — add one to start syncing mail.",
+                text = strings.settingsNoAccounts,
                 color = colors.textMuted,
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -188,10 +203,10 @@ private fun AccountsSection(
                         Text(text = account.emailAddress, color = colors.textMuted, style = MaterialTheme.typography.bodySmall)
                     }
                     IconButton(onClick = { onEdit(account.id) }) {
-                        Icon(Icons.Filled.Edit, contentDescription = "Edit", tint = colors.textMuted)
+                        Icon(Icons.Filled.Edit, contentDescription = strings.settingsEditAccount, tint = colors.textMuted)
                     }
                     IconButton(onClick = { onRemove(account) }) {
-                        Icon(Icons.Filled.Delete, contentDescription = "Remove", tint = colors.coral)
+                        Icon(Icons.Filled.Delete, contentDescription = strings.settingsRemoveAccount, tint = colors.coral)
                     }
                 }
             }
@@ -200,14 +215,14 @@ private fun AccountsSection(
 }
 
 @Composable
-private fun SyncSection(account: AccountEntity, onIntervalSelected: (Int) -> Unit) {
+private fun SyncSection(account: AccountEntity, onIntervalSelected: (Int) -> Unit, strings: Strings) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        MailSectionHeader(title = "Sync", icon = Icons.Outlined.Schedule)
+        MailSectionHeader(title = strings.settingsSyncSection, icon = Icons.Outlined.Schedule)
         MailDropdownField(
-            label = "Check for new mail every",
+            label = strings.settingsSyncIntervalLabel,
             options = listOf(15, 30, 60),
             selected = account.syncIntervalMinutes,
-            optionLabel = { "$it min" },
+            optionLabel = { strings.settingsSyncIntervalMinutes(it) },
             onSelect = onIntervalSelected,
         )
     }
@@ -218,18 +233,19 @@ private fun SwipeActionsSection(
     leftAction: SwipeAction,
     rightAction: SwipeAction,
     onChange: (SwipeAction, SwipeAction) -> Unit,
+    strings: Strings,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        MailSectionHeader(title = "Swipe actions", icon = Icons.Outlined.SwipeLeft)
+        MailSectionHeader(title = strings.settingsSwipeActionsSection, icon = Icons.Outlined.SwipeLeft)
         MailDropdownField(
-            label = "Swipe left",
+            label = strings.settingsSwipeLeft,
             options = SwipeAction.entries,
             selected = leftAction,
             optionLabel = { it.name.lowercase().replaceFirstChar(Char::uppercase) },
             onSelect = { onChange(it, rightAction) },
         )
         MailDropdownField(
-            label = "Swipe right",
+            label = strings.settingsSwipeRight,
             options = SwipeAction.entries,
             selected = rightAction,
             optionLabel = { it.name.lowercase().replaceFirstChar(Char::uppercase) },
@@ -244,6 +260,7 @@ private fun CategoriesSection(
     onAdd: () -> Unit,
     onEdit: (CategoryEntity) -> Unit,
     onDelete: (CategoryEntity) -> Unit,
+    strings: Strings,
 ) {
     val colors = AppColors
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -252,15 +269,15 @@ private fun CategoriesSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            MailSectionHeader(title = "Categories & rules", icon = Icons.Outlined.Label)
+            MailSectionHeader(title = strings.settingsCategoriesSection, icon = Icons.Outlined.Label)
             IconButton(onClick = onAdd) {
-                Icon(Icons.Filled.Add, contentDescription = "Add category", tint = colors.primary)
+                Icon(Icons.Filled.Add, contentDescription = strings.settingsCategoriesSection, tint = colors.primary)
             }
         }
 
         if (categories.isEmpty()) {
             Text(
-                text = "No categories yet — add one to auto-sort mail by sender, subject, or body.",
+                text = strings.settingsNoCategories,
                 color = colors.textMuted,
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -295,18 +312,18 @@ private fun CategoriesSection(
 }
 
 @Composable
-private fun ThemeSection(selected: ThemePref, onSelect: (ThemePref) -> Unit) {
+private fun ThemeSection(selected: ThemePref, onSelect: (ThemePref) -> Unit, strings: Strings) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        MailSectionHeader(title = "Appearance", icon = Icons.Outlined.Palette)
+        MailSectionHeader(title = strings.settingsAppearanceSection, icon = Icons.Outlined.Palette)
         MailDropdownField(
-            label = "Theme",
+            label = strings.settingsTheme,
             options = listOf(ThemePref.System, ThemePref.Light, ThemePref.Dark),
             selected = selected,
             optionLabel = {
                 when (it) {
-                    ThemePref.System -> "System"
-                    ThemePref.Light -> "Light"
-                    ThemePref.Dark -> "Dark"
+                    ThemePref.System -> strings.settingsThemeSystem
+                    ThemePref.Light -> strings.settingsThemeLight
+                    ThemePref.Dark -> strings.settingsThemeDark
                 }
             },
             onSelect = onSelect,

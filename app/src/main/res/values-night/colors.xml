@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Dark splash: ink brand canvas + cyan glyph. -->
-    <color name="splash_background">#0A0E14</color>
-    <color name="splash_glyph">#22D3EE</color>
+    <color name="splash_background">#13161D</color>
+    <color name="splash_glyph">#5888FC</color>
 </resources>

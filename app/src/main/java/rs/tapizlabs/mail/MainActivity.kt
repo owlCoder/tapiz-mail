@@ -14,11 +14,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import rs.tapizlabs.mail.sync.IdleSyncService
 import rs.tapizlabs.mail.sync.NewMailNotifier
 import rs.tapizlabs.mail.ui.navigation.RootNavigation
 import rs.tapizlabs.mail.ui.theme.MailTheme
+import rs.tapizlabs.mail.ui.theme.ThemeViewModel
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -38,17 +41,24 @@ class MainActivity : ComponentActivity() {
         // backgrounds (see IdleSyncService), so this is safe to call unconditionally here
         // rather than threading an account-aware check through the UI layer.
         ContextCompat.startForegroundService(this, Intent(this, IdleSyncService::class.java))
-        requestNotificationPermissionIfNeeded()
         pendingMessageId = intent?.getStringExtra(NewMailNotifier.EXTRA_MESSAGE_ID)
         setContent {
-            MailTheme {
-                RootNavigation(pendingMessageId = pendingMessageId)
+            val themeViewModel: ThemeViewModel = hiltViewModel()
+            val themePref by themeViewModel.themePref.collectAsStateWithLifecycle()
+            MailTheme(themePref = themePref) {
+                RootNavigation(
+                    pendingMessageId = pendingMessageId,
+                    onRequestNotificationPermission = ::requestNotificationPermissionIfNeeded,
+                )
             }
         }
     }
 
     /** Android 13+ requires runtime consent for POST_NOTIFICATIONS — without this, the
-     * manifest permission alone silently no-ops [NewMailNotifier]'s notify() calls. */
+     * manifest permission alone silently no-ops [NewMailNotifier]'s notify() calls. Called
+     * from the dedicated onboarding "Notifications" step (not fired blindly from onCreate)
+     * so a returning user with accounts already set up never sees the system prompt jump
+     * in front of whatever screen they landed on. */
     private fun requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
         val alreadyGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
