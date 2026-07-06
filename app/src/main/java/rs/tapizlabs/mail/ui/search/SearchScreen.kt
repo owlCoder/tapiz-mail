@@ -1,7 +1,15 @@
 package rs.tapizlabs.mail.ui.search
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,6 +17,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,8 +25,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -43,8 +54,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusEvent
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -55,97 +70,178 @@ import rs.tapizlabs.mail.ui.model.AccountSummaryUi
 import rs.tapizlabs.mail.ui.theme.AppColors
 
 /**
- * Search — rendered as a full-screen overlay directly over [rs.tapizlabs.mail.ui.inbox.InboxScreen]
- * (like Gmail's search: the inbox stays mounted underneath, no NavHost back-stack entry) rather
- * than a pushed destination — see [rs.tapizlabs.mail.ui.inbox.InboxScreen]'s `showSearch` state,
- * which is the sole caller. Debounced query against the local Room search
+ * Search — rendered as a *floating* overlay above [rs.tapizlabs.mail.ui.inbox.InboxScreen]:
+ * a dimmed scrim over the still-mounted inbox plus a rounded, inset panel that drops in from
+ * the top and holds the search field, filter chips, and results. Deliberately NOT the old
+ * full-bleed Gmail-style pane (which read as a separate screen) — this reads as an overlay
+ * that belongs to the app, matching [rs.tapizlabs.mail.ui.components.MailSheet]'s scrim +
+ * card family (just anchored top instead of bottom).
+ *
+ * Owns its own `visible`/`onDismiss` animation now, so the caller just renders it
+ * unconditionally and flips [visible]; the inbox stays mounted underneath (no NavHost
+ * back-stack entry). Debounced query against the local Room search
  * (`MessageDao.searchMessages`), plus simple filter chips (account, has-attachment).
  */
 @Composable
 fun SearchScreen(
+    visible: Boolean,
     onOpenMessage: (messageId: String) -> Unit,
-    onBack: () -> Unit,
+    onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val colors = AppColors
     val strings = LocalStrings.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val focusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
 
-    Column(modifier = modifier.fillMaxSize().background(colors.canvasTop)) {
-        Row(
-            modifier = Modifier.padding(start = 4.dp, end = 16.dp, top = 8.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    BackHandler(enabled = visible, onBack = onDismiss)
+
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val maxPanelHeight = maxHeight * 0.88f
+
+        // Scrim — dims the inbox behind and dismisses on tap. Same 0.32 alpha as MailSheet
+        // so the two overlays feel like one system.
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(tween(220, easing = FastOutSlowInEasing)),
+            exit = fadeOut(tween(140, easing = LinearOutSlowInEasing)),
+            modifier = Modifier.fillMaxSize(),
         ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Back", tint = colors.textPrimary)
-            }
-            SearchField(
-                query = uiState.query,
-                onQueryChange = viewModel::updateQuery,
-                placeholder = strings.searchPlaceholder,
-                modifier = Modifier.weight(1f),
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.32f))
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClick = onDismiss,
+                    ),
             )
         }
 
-        FilterChipsRow(
-            accounts = uiState.accounts,
-            selectedAccountId = uiState.filters.accountId,
-            hasAttachmentOnly = uiState.filters.hasAttachmentOnly,
-            onSelectAccount = viewModel::updateAccountFilter,
-            onToggleHasAttachment = viewModel::toggleHasAttachmentFilter,
-            strings = strings,
-        )
-
-        HorizontalDivider(color = colors.stroke.copy(alpha = 0.5f))
-
-        // Crossfade keyed on which of the three states is showing (hint/empty/results) so
-        // typing a query or changing filters fades the content instead of an abrupt cut —
-        // matches the same pattern used for the Inbox's category chip switches.
-        val searchStateKey = when {
-            uiState.query.isBlank() -> "hint"
-            uiState.results.isEmpty() -> "empty"
-            else -> "results"
-        }
-        Crossfade(
-            targetState = searchStateKey,
-            animationSpec = tween(180),
-            label = "search_state_crossfade",
+        // Floating panel — drops in from the top, inset from the edges so it visibly floats.
+        AnimatedVisibility(
+            visible = visible,
+            enter = slideInVertically(tween(240, easing = FastOutSlowInEasing)) { -it } +
+                fadeIn(tween(240, easing = FastOutSlowInEasing)),
+            exit = slideOutVertically(tween(160, easing = LinearOutSlowInEasing)) { -it } +
+                fadeOut(tween(160, easing = LinearOutSlowInEasing)),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth(),
         ) {
-            when (it) {
-                "hint" -> SearchHint(strings.searchHint)
-                "empty" -> SearchEmptyResults(strings.searchNoResults)
-                else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    item {
-                        Text(
-                            text = strings.searchResultsCount(uiState.results.size),
-                            style = MaterialTheme.typography.labelSmall.copy(color = colors.textMuted, fontWeight = FontWeight.SemiBold),
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            // Full-bleed to the top + side edges (no top margin, x flush to edge); only the
+            // bottom corners are rounded since the panel hangs from the very top of the screen.
+            val panelShape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = maxPanelHeight)
+                    .clip(panelShape)
+                    .background(colors.card)
+                    .imePadding(),
+            ) {
+                // Header: back + search field, then filter chips — pinned; results scroll below.
+                // statusBarsPadding lives here (not on the panel) so the card fill goes edge-to-edge
+                // under the status bar while content stays clear of it.
+                Column(
+                    modifier = Modifier
+                        .statusBarsPadding()
+                        .padding(horizontal = 10.dp, vertical = 10.dp),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                                contentDescription = "Back",
+                                tint = colors.textPrimary,
+                            )
+                        }
+                        SearchField(
+                            query = uiState.query,
+                            onQueryChange = viewModel::updateQuery,
+                            placeholder = strings.searchPlaceholder,
+                            focusRequester = focusRequester,
+                            modifier = Modifier.weight(1f),
                         )
                     }
-                    items(uiState.results, key = { message -> message.id }) { message ->
-                        MessageListItem(
-                            message = message,
-                            onClick = { onOpenMessage(message.id) },
-                            onToggleStar = { viewModel.toggleStar(message.id, message.isStarred) },
-                        )
-                        HorizontalDivider(color = colors.stroke.copy(alpha = 0.4f))
+
+                    Spacer(Modifier.height(10.dp))
+
+                    FilterChipsRow(
+                        accounts = uiState.accounts,
+                        selectedAccountId = uiState.filters.accountId,
+                        hasAttachmentOnly = uiState.filters.hasAttachmentOnly,
+                        onSelectAccount = viewModel::updateAccountFilter,
+                        onToggleHasAttachment = viewModel::toggleHasAttachmentFilter,
+                        strings = strings,
+                    )
+                }
+
+                // Crossfade keyed on which of the three states is showing (hint/empty/results)
+                // so typing a query or changing filters fades the content instead of cutting.
+                val searchStateKey = when {
+                    uiState.query.isBlank() -> "hint"
+                    uiState.results.isEmpty() -> "empty"
+                    else -> "results"
+                }
+                Crossfade(
+                    targetState = searchStateKey,
+                    animationSpec = tween(180),
+                    label = "search_state_crossfade",
+                ) {
+                    when (it) {
+                        "hint" -> SearchHint(strings.searchHint)
+                        "empty" -> SearchEmptyResults(strings.searchNoResults)
+                        else -> LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                            item {
+                                Text(
+                                    text = strings.searchResultsCount(uiState.results.size),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = colors.textMuted,
+                                        fontWeight = FontWeight.SemiBold,
+                                    ),
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                )
+                            }
+                            items(uiState.results, key = { message -> message.id }) { message ->
+                                MessageListItem(
+                                    message = message,
+                                    onClick = { onOpenMessage(message.id) },
+                                    onToggleStar = { viewModel.toggleStar(message.id, message.isStarred) },
+                                )
+                                HorizontalDivider(color = colors.stroke.copy(alpha = 0.4f))
+                            }
+                        }
                     }
                 }
             }
         }
     }
+
+    // Autofocus the field (and raise the keyboard) whenever the overlay opens, so search is
+    // ready to type into immediately — an overlay that requires a second tap to focus feels
+    // like a screen, not a quick action.
+    androidx.compose.runtime.LaunchedEffect(visible) {
+        if (visible) {
+            focusRequester.requestFocus()
+            keyboard?.show()
+        }
+    }
 }
 
 /** Flat "Signal" pill search field — `inputBackground` fill, no Material outline, matches
- * [MailTextField]'s recipe but pill-shaped (999.dp) and label-less since this is a standalone
- * search bar, not a form field. Replaces the earlier `OutlinedTextField`, which read as a
- * generic Material field inconsistent with the rest of the app's flat surfaces. */
+ * [rs.tapizlabs.mail.ui.components.MailTextField]'s recipe but pill-shaped (999.dp) and
+ * label-less since this is a standalone search bar, not a form field. */
 @Composable
 private fun SearchField(
     query: String,
     onQueryChange: (String) -> Unit,
     placeholder: String,
+    focusRequester: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
     val colors = AppColors
@@ -181,6 +277,7 @@ private fun SearchField(
                 onValueChange = onQueryChange,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .focusRequester(focusRequester)
                     .onFocusEvent { isFocused = it.isFocused },
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = colors.textPrimary),
@@ -208,7 +305,7 @@ private fun FilterChipsRow(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         FilterChip(
@@ -243,16 +340,28 @@ private fun FilterChip(
     val shape = RoundedCornerShape(999.dp)
     val interactionSource = remember { MutableInteractionSource() }
 
+    val backgroundColor by androidx.compose.animation.animateColorAsState(
+        targetValue = if (selected) colors.accentSoft else colors.cardSubtle,
+        animationSpec = tween(160),
+        label = "filter_chip_bg",
+    )
+    val borderColor by androidx.compose.animation.animateColorAsState(
+        targetValue = if (selected) colors.primary else colors.stroke.copy(alpha = 0.6f),
+        animationSpec = tween(160),
+        label = "filter_chip_border",
+    )
+    val contentColor by androidx.compose.animation.animateColorAsState(
+        targetValue = if (selected) colors.primary else colors.textSecondary,
+        animationSpec = tween(160),
+        label = "filter_chip_content",
+    )
+
     Row(
         modifier = Modifier
             .heightIn(min = 32.dp)
             .clip(shape)
-            .background(if (selected) colors.accentSoft else colors.cardSubtle)
-            .border(
-                width = 1.dp,
-                color = if (selected) colors.primary else colors.stroke.copy(alpha = 0.6f),
-                shape = shape,
-            )
+            .background(backgroundColor)
+            .border(width = 1.dp, color = borderColor, shape = shape)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -266,14 +375,14 @@ private fun FilterChip(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (selected) colors.primary else colors.textMuted,
+                tint = contentColor,
                 modifier = Modifier.size(14.dp),
             )
         }
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium.copy(
-                color = if (selected) colors.primary else colors.textSecondary,
+                color = contentColor,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             ),
         )
@@ -298,8 +407,8 @@ private fun SearchStatePlaceholder(icon: androidx.compose.ui.graphics.vector.Ima
     val colors = AppColors
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+            .fillMaxWidth()
+            .padding(vertical = 48.dp, horizontal = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {

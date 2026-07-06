@@ -242,22 +242,15 @@ fun InboxScreen(
             )
         }
 
-        // Full-screen overlay above the inbox content (Gmail-style search: no NavHost
-        // route/back-stack entry, the inbox just stays mounted underneath).
-        AnimatedVisibility(
+        // Floating search overlay above the inbox content (no NavHost route/back-stack entry,
+        // the inbox stays mounted underneath). SearchScreen owns its own scrim + drop-in
+        // animation now, so it's rendered unconditionally and just toggled via `visible`.
+        SearchScreen(
             visible = showSearch,
-            enter = slideInVertically(tween(220, easing = FastOutSlowInEasing)) { -it } +
-                fadeIn(tween(220, easing = FastOutSlowInEasing)),
-            exit = slideOutVertically(tween(160, easing = LinearOutSlowInEasing)) { -it } +
-                fadeOut(tween(160, easing = LinearOutSlowInEasing)),
+            onOpenMessage = onOpenMessage,
+            onDismiss = { showSearch = false },
             modifier = Modifier.fillMaxSize(),
-        ) {
-            SearchScreen(
-                onOpenMessage = onOpenMessage,
-                onBack = { showSearch = false },
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
+        )
     }
 }
 

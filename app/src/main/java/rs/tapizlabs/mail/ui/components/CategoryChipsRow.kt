@@ -1,5 +1,8 @@
 package rs.tapizlabs.mail.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,6 +27,8 @@ import androidx.compose.ui.unit.sp
 import rs.tapizlabs.mail.ui.model.CategoryChipUi
 import rs.tapizlabs.mail.ui.theme.AppColors
 import kotlin.math.abs
+
+private const val CHIP_ANIM_MS = 160
 
 /**
  * Horizontal scrollable row of category chips (Primary + custom categories), each showing
@@ -63,15 +69,37 @@ private fun CategoryChip(
     val shape = RoundedCornerShape(999.dp)
     val interactionSource = remember { MutableInteractionSource() }
 
+    val backgroundColor by animateColorAsState(
+        targetValue = if (selected) colors.accentSoft else colors.cardSubtle,
+        animationSpec = tween(CHIP_ANIM_MS),
+        label = "chip_background",
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (selected) tint else colors.stroke.copy(alpha = 0.6f),
+        animationSpec = tween(CHIP_ANIM_MS),
+        label = "chip_border",
+    )
+    val labelColor by animateColorAsState(
+        targetValue = if (selected) tint else colors.textSecondary,
+        animationSpec = tween(CHIP_ANIM_MS),
+        label = "chip_label",
+    )
+    val countColor by animateColorAsState(
+        targetValue = if (selected) tint else colors.textMuted,
+        animationSpec = tween(CHIP_ANIM_MS),
+        label = "chip_count",
+    )
+    val borderWidth by animateDpAsState(
+        targetValue = if (selected) 1.5.dp else 1.dp,
+        animationSpec = tween(CHIP_ANIM_MS),
+        label = "chip_border_width",
+    )
+
     Row(
         modifier = Modifier
             .clip(shape)
-            .background(if (selected) colors.accentSoft else colors.cardSubtle)
-            .border(
-                width = 1.dp,
-                color = if (selected) tint else colors.stroke.copy(alpha = 0.6f),
-                shape = shape,
-            )
+            .background(backgroundColor)
+            .border(width = borderWidth, color = borderColor, shape = shape)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -83,14 +111,14 @@ private fun CategoryChip(
         Text(
             text = category.name,
             style = MaterialTheme.typography.labelMedium.copy(
-                color = if (selected) tint else colors.textSecondary,
+                color = labelColor,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             ),
         )
         Text(
             text = "${category.count}",
             style = MaterialTheme.typography.labelSmall.copy(
-                color = if (selected) tint else colors.textMuted,
+                color = countColor,
                 fontWeight = FontWeight.Bold,
                 fontSize = 11.sp,
                 lineHeight = 11.sp,
