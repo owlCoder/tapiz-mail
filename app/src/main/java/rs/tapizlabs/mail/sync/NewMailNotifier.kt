@@ -63,7 +63,7 @@ class NewMailNotifier @Inject constructor(
     private fun buildSingleMessageNotification(accountDisplayName: String, message: MessageEntity): Notification {
         val senderLabel = message.fromName.ifBlank { message.fromAddress }
         return NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_monochrome)
+            .setSmallIcon(R.drawable.ic_notification)
             .setLargeIcon(largeIcon)
             .setContentTitle(senderLabel)
             .setContentText(message.subject.ifBlank { "(no subject)" })
@@ -84,7 +84,7 @@ class NewMailNotifier @Inject constructor(
         }
 
         return NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_monochrome)
+            .setSmallIcon(R.drawable.ic_notification)
             .setLargeIcon(largeIcon)
             .setContentTitle("${messages.size} new messages")
             .setContentText(accountDisplayName)

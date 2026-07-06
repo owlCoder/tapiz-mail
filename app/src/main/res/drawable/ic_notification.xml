@@ -1,0 +1,20 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FFFFFF">
+    <!--
+      Dedicated status-bar / notification small icon — solid filled envelope, NOT the
+      adaptive-icon monochrome glyph (ic_launcher_monochrome). That one is thin-stroked and
+      drawn on a 108x108 viewport meant for a launcher's safe zone; at actual notification
+      size (~24dp, further inset by the system status bar renderer) its strokes and margins
+      collapse to near-invisible. This glyph is solid-filled and sized to fill its own 24x24
+      viewport edge-to-edge (Android's own status-bar padding/inset handles the rest), per
+      standard Android notification-icon guidance (solid white shape on transparent, no
+      surrounding padding baked into the asset itself).
+    -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M3,5 C1.9,5 1,5.9 1,7 V17 C1,18.1 1.9,19 3,19 H21 C22.1,19 23,18.1 23,17 V7 C23,5.9 22.1,5 21,5 H3 Z M20.4,7 L12,13.5 L3.6,7 H20.4 Z M3,8.24 L11.4,14.78 C11.56,14.9 11.77,15 12,15 C12.23,15 12.44,14.9 12.6,14.78 L21,8.24 V17 H3 V8.24 Z" />
+</vector>

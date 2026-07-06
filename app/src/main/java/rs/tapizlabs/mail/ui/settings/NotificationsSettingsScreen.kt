@@ -44,6 +44,7 @@ import rs.tapizlabs.mail.ui.theme.AppColors
 @Composable
 fun NotificationsSettingsScreen(
     onBack: () -> Unit,
+    onRequestSystemPermission: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -100,7 +101,14 @@ fun NotificationsSettingsScreen(
                     }
                     Switch(
                         checked = state.notificationsEnabled,
-                        onCheckedChange = viewModel::setNotificationsEnabled,
+                        onCheckedChange = { enabled ->
+                            viewModel.setNotificationsEnabled(enabled)
+                            // Turning the app-level toggle back on is meaningless if the OS
+                            // permission was previously denied/never granted — re-request it
+                            // here (no-op on Android <13 or if already granted) instead of the
+                            // user having to dig into system app-info settings themselves.
+                            if (enabled) onRequestSystemPermission()
+                        },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = colors.onPrimary,
                             checkedTrackColor = colors.primary,

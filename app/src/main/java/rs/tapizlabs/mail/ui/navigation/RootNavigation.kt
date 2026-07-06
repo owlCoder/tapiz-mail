@@ -248,7 +248,10 @@ fun RootNavigation(
         }
 
         composable(Routes.SETTINGS_NOTIFICATIONS) {
-            NotificationsSettingsScreen(onBack = { navController.popBackStack() })
+            NotificationsSettingsScreen(
+                onBack = { navController.popBackStack() },
+                onRequestSystemPermission = onRequestNotificationPermission,
+            )
         }
 
         composable(Routes.SETTINGS_APPEARANCE) {
