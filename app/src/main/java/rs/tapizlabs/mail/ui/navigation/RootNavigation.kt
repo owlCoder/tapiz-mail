@@ -7,6 +7,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -36,8 +38,10 @@ import rs.tapizlabs.mail.ui.onboarding.OnboardingScreen
 import rs.tapizlabs.mail.ui.settings.AboutScreen
 import rs.tapizlabs.mail.ui.settings.AppearanceSettingsScreen
 import rs.tapizlabs.mail.ui.settings.MailSettingsScreen
+import rs.tapizlabs.mail.ui.settings.NotificationsSettingsScreen
 import rs.tapizlabs.mail.ui.settings.PrivacyScreen
 import rs.tapizlabs.mail.ui.settings.SettingsScreen
+import rs.tapizlabs.mail.ui.theme.AppColors
 
 /**
  * Top-level NavHost, called with no args from `MainActivity` inside `MailTheme { }`.
@@ -85,6 +89,16 @@ fun RootNavigation(
     }
 
     CompositionLocalProvider(LocalStrings provides stringsFor(language), LocalAppLanguage provides language) {
+    // Solid theme-colored backdrop behind the whole NavHost — without this, the brief gap
+    // between two screens sliding past each other during a push/pop transition (each screen
+    // is its own Scaffold with its own containerColor, but nothing paints the space *around*
+    // them while they're both mid-animation) falls through to the Android Window's own
+    // background, which defaults to white and reads as a flash in dark mode.
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(AppColors.canvasTop),
+    ) {
     NavHost(
         navController = navController,
         startDestination = startDestination,
@@ -165,12 +179,19 @@ fun RootNavigation(
         }
 
         composable(Routes.NOTIFICATION_PERMISSION) {
+            // Reuses SettingsViewModel purely for its setNotificationsEnabled setter — this
+            // onboarding step is the in-app counterpart of the system POST_NOTIFICATIONS
+            // dialog, so Allow/Skip here also drives the app-level notifications-enabled
+            // preference (Settings > Notifications), not just the OS permission prompt.
+            val settingsViewModel: rs.tapizlabs.mail.ui.settings.SettingsViewModel = hiltViewModel()
             NotificationPermissionScreen(
                 onAllow = {
+                    settingsViewModel.setNotificationsEnabled(true)
                     onRequestNotificationPermission()
                     navController.navigate(Routes.INBOX) { popUpTo(0) { inclusive = true } }
                 },
                 onSkip = {
+                    settingsViewModel.setNotificationsEnabled(false)
                     navController.navigate(Routes.INBOX) { popUpTo(0) { inclusive = true } }
                 },
             )
@@ -214,6 +235,7 @@ fun RootNavigation(
                 onAddAccount = { navController.navigate(Routes.addAccount()) },
                 onEditAccount = { accountId -> navController.navigate(Routes.editAccount(accountId)) },
                 onOpenMailSettings = { navController.navigate(Routes.SETTINGS_MAIL) },
+                onOpenNotificationsSettings = { navController.navigate(Routes.SETTINGS_NOTIFICATIONS) },
                 onOpenAppearanceSettings = { navController.navigate(Routes.SETTINGS_APPEARANCE) },
                 onOpenAbout = { navController.navigate(Routes.SETTINGS_ABOUT) },
                 onOpenPrivacy = { navController.navigate(Routes.SETTINGS_PRIVACY) },
@@ -223,6 +245,10 @@ fun RootNavigation(
 
         composable(Routes.SETTINGS_MAIL) {
             MailSettingsScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Routes.SETTINGS_NOTIFICATIONS) {
+            NotificationsSettingsScreen(onBack = { navController.popBackStack() })
         }
 
         composable(Routes.SETTINGS_APPEARANCE) {
@@ -247,6 +273,7 @@ fun RootNavigation(
                 onBack = { navController.popBackStack() },
             )
         }
+    }
     }
     }
 }

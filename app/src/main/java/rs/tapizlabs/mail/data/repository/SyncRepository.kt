@@ -228,5 +228,6 @@ class SyncRepository @Inject constructor(
             sizeBytes = sizeBytes,
             localUri = null,
             contentId = contentId,
+            partIndex = partIndex,
         )
 }

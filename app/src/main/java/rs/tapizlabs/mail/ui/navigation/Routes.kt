@@ -18,6 +18,7 @@ object Routes {
     const val COMPOSE = "compose?mode={mode}&messageId={messageId}"
     const val SETTINGS = "settings"
     const val SETTINGS_MAIL = "settings/mail"
+    const val SETTINGS_NOTIFICATIONS = "settings/notifications"
     const val SETTINGS_APPEARANCE = "settings/appearance"
     const val SETTINGS_ABOUT = "settings/about"
     const val SETTINGS_PRIVACY = "settings/privacy"

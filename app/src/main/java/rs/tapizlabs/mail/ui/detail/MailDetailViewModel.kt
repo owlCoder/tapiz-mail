@@ -37,6 +37,7 @@ data class AttachmentUi(
     val mimeType: String,
     val sizeBytes: Long,
     val localUri: String?,
+    val isDownloading: Boolean = false,
 )
 
 /** Nav-arg driven per Hilt+Nav convention used in `tapiz-boards`: the nav-graph agent passes
@@ -52,14 +53,20 @@ class MailDetailViewModel @Inject constructor(
         "MailDetailViewModel requires a `messageId` nav argument"
     }
 
+    /** Attachment ids currently mid-download — drives a small loading indicator on that row's
+     * Open/Save buttons (see [downloadAttachment]) instead of them just silently doing
+     * nothing while the IMAP fetch is in flight. */
+    private val downloadingAttachmentIds = MutableStateFlow<Set<String>>(emptySet())
+
     val uiState: StateFlow<MailDetailUiState> = combine(
         repository.observeMessage(messageId),
         repository.observeAttachmentsForMessage(messageId),
-    ) { message, attachments ->
+        downloadingAttachmentIds,
+    ) { message, attachments, downloading ->
         if (message == null) {
             MailDetailUiState(isLoading = false, messageId = messageId, notFound = true)
         } else {
-            message.toUiState(attachments)
+            message.toUiState(attachments, downloading)
         }
     }.stateIn(
         scope = viewModelScope,
@@ -103,9 +110,28 @@ class MailDetailViewModel @Inject constructor(
             onDeleted()
         }
     }
+
+    /** Fetches an attachment's bytes on demand and caches the resulting local file — sync
+     * only ever stores attachment metadata, never bytes, up front (see
+     * [MailSyncGateway.downloadAttachment]'s doc), so Open/Save both need this before they
+     * have anything to act on. [onReady] fires with the resulting `content://` URI so the
+     * caller (the screen) can immediately follow through with whatever action (open/save)
+     * the user actually tapped, instead of requiring a second tap once the download lands. */
+    fun downloadAttachment(attachmentId: String, onReady: (uri: String) -> Unit) {
+        if (attachmentId in downloadingAttachmentIds.value) return
+        viewModelScope.launch {
+            downloadingAttachmentIds.value = downloadingAttachmentIds.value + attachmentId
+            syncGateway.downloadAttachment(attachmentId)
+                .onSuccess(onReady)
+            downloadingAttachmentIds.value = downloadingAttachmentIds.value - attachmentId
+        }
+    }
 }
 
-private fun MessageEntity.toUiState(attachments: List<AttachmentEntity>) = MailDetailUiState(
+private fun MessageEntity.toUiState(
+    attachments: List<AttachmentEntity>,
+    downloadingAttachmentIds: Set<String>,
+) = MailDetailUiState(
     isLoading = false,
     messageId = id,
     subject = subject,
@@ -123,6 +149,7 @@ private fun MessageEntity.toUiState(attachments: List<AttachmentEntity>) = MailD
             mimeType = it.mimeType,
             sizeBytes = it.sizeBytes,
             localUri = it.localUri,
+            isDownloading = it.id in downloadingAttachmentIds,
         )
     },
 )

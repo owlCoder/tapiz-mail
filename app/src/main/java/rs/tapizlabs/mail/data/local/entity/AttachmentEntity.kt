@@ -28,4 +28,11 @@ data class AttachmentEntity(
     val localUri: String?,
     /** `Content-ID` header for inline images referenced from `bodyHtml`; null otherwise. */
     val contentId: String?,
+    /** Index of this body part within the source message's MimeMultipart structure — needed
+     * to re-fetch this specific attachment's bytes on demand (see
+     * [rs.tapizlabs.mail.mail.ImapClient.downloadAttachment]) since envelope sync never
+     * downloads attachment bytes eagerly. Defaults to 0 for rows written before this field
+     * existed; those can no longer be re-downloaded correctly, but existing already-cached
+     * [localUri]s are unaffected. */
+    val partIndex: Int = 0,
 )

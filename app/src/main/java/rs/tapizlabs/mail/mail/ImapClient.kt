@@ -363,6 +363,27 @@ class ImapClient @Inject constructor(
         }
     }
 
+    /** Batch version of [deleteMessagePermanently] — flags every message in [uids] `\Deleted`
+     * on a single opened folder, then expunges once on close, instead of one connect/open/
+     * close round-trip per message (what "Empty trash" used to do, one IMAP connection per
+     * message, before this existed). Used for bulk actions like "Empty trash" where all the
+     * messages live in the same real IMAP folder. Missing UIDs (e.g. already gone server-side)
+     * are skipped rather than aborting the whole batch. */
+    fun deleteMessagesPermanently(store: IMAPStore, folderInfo: FolderInfo, uids: List<Long>) {
+        if (uids.isEmpty()) return
+        val folder = store.getFolder(folderInfo.remoteName) as IMAPFolder
+        try {
+            folder.open(Folder.READ_WRITE)
+            uids.forEach { uid ->
+                runCatching { folder.getMessageByUID(uid)?.setFlag(Flags.Flag.DELETED, true) }
+            }
+        } catch (e: MessagingException) {
+            throw MailError.FolderUnavailable(folderInfo.remoteName, e)
+        } finally {
+            if (folder.isOpen) runCatching { folder.close(true) }
+        }
+    }
+
     companion object {
         private const val SNIPPET_LENGTH = 160
         private const val INITIAL_SYNC_LIMIT = 25

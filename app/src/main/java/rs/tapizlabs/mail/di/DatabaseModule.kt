@@ -26,7 +26,7 @@ object DatabaseModule {
     @Singleton
     fun provideMailDatabase(@ApplicationContext context: Context): MailDatabase =
         Room.databaseBuilder(context, MailDatabase::class.java, MailDatabase.DATABASE_NAME)
-            .addMigrations(MailDatabase.MIGRATION_1_2)
+            .addMigrations(MailDatabase.MIGRATION_1_2, MailDatabase.MIGRATION_2_3)
             .build()
 
     @Provides

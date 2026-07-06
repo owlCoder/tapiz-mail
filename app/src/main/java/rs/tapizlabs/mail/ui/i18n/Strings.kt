@@ -220,6 +220,10 @@ class Strings internal constructor() {
     lateinit var settingsLanguage: String
     lateinit var settingsMailSection: String
     lateinit var settingsMailSectionSubtitle: String
+    lateinit var settingsNotificationsSection: String
+    lateinit var settingsNotificationsSectionSubtitle: String
+    lateinit var settingsNotificationsToggleLabel: String
+    lateinit var settingsNotificationsToggleSubtext: String
     lateinit var settingsAppearanceLanguageSection: String
     lateinit var settingsAppearanceLanguageSectionSubtitle: String
     lateinit var settingsPrivacySection: String
@@ -404,6 +408,10 @@ val SrStrings = Strings().apply {
     settingsLanguage = "Jezik aplikacije"
     settingsMailSection = "Pošta"
     settingsMailSectionSubtitle = "Sinhronizacija, swipe akcije, kategorije i pravila"
+    settingsNotificationsSection = "Obaveštenja"
+    settingsNotificationsSectionSubtitle = "Uključi ili isključi obaveštenja o novoj pošti"
+    settingsNotificationsToggleLabel = "Obaveštenja o novoj pošti"
+    settingsNotificationsToggleSubtext = "Prikaži obaveštenje kada stigne nova poruka u Inbox"
     settingsAppearanceLanguageSection = "Izgled i jezik"
     settingsAppearanceLanguageSectionSubtitle = "Tema i jezik aplikacije"
     settingsPrivacySection = "Privatnost"
@@ -576,6 +584,10 @@ val EnStrings = Strings().apply {
     settingsLanguage = "App language"
     settingsMailSection = "Mail"
     settingsMailSectionSubtitle = "Sync, swipe actions, categories & rules"
+    settingsNotificationsSection = "Notifications"
+    settingsNotificationsSectionSubtitle = "Turn new-mail notifications on or off"
+    settingsNotificationsToggleLabel = "New mail notifications"
+    settingsNotificationsToggleSubtext = "Show a notification when new mail arrives in Inbox"
     settingsAppearanceLanguageSection = "Appearance & language"
     settingsAppearanceLanguageSectionSubtitle = "Theme and app language"
     settingsPrivacySection = "Privacy"
@@ -748,6 +760,10 @@ val DeStrings = Strings().apply {
     settingsLanguage = "App-Sprache"
     settingsMailSection = "Mail"
     settingsMailSectionSubtitle = "Synchronisierung, Swipe-Aktionen, Kategorien & Regeln"
+    settingsNotificationsSection = "Benachrichtigungen"
+    settingsNotificationsSectionSubtitle = "Benachrichtigungen für neue Post ein- oder ausschalten"
+    settingsNotificationsToggleLabel = "Benachrichtigungen für neue Post"
+    settingsNotificationsToggleSubtext = "Benachrichtigung anzeigen, wenn neue Post im Posteingang eintrifft"
     settingsAppearanceLanguageSection = "Erscheinungsbild & Sprache"
     settingsAppearanceLanguageSectionSubtitle = "Design und Sprache der App"
     settingsPrivacySection = "Datenschutz"
@@ -920,6 +936,10 @@ val EsStrings = Strings().apply {
     settingsLanguage = "Idioma de la app"
     settingsMailSection = "Correo"
     settingsMailSectionSubtitle = "Sincronización, acciones de deslizamiento, categorías y reglas"
+    settingsNotificationsSection = "Notificaciones"
+    settingsNotificationsSectionSubtitle = "Activa o desactiva las notificaciones de correo nuevo"
+    settingsNotificationsToggleLabel = "Notificaciones de correo nuevo"
+    settingsNotificationsToggleSubtext = "Mostrar una notificación cuando llegue correo nuevo a la bandeja de entrada"
     settingsAppearanceLanguageSection = "Apariencia e idioma"
     settingsAppearanceLanguageSectionSubtitle = "Tema e idioma de la app"
     settingsPrivacySection = "Privacidad"
@@ -1092,6 +1112,10 @@ val FrStrings = Strings().apply {
     settingsLanguage = "Langue de l'application"
     settingsMailSection = "Mail"
     settingsMailSectionSubtitle = "Synchronisation, actions de balayage, catégories et règles"
+    settingsNotificationsSection = "Notifications"
+    settingsNotificationsSectionSubtitle = "Activer ou désactiver les notifications de nouveaux messages"
+    settingsNotificationsToggleLabel = "Notifications de nouveaux messages"
+    settingsNotificationsToggleSubtext = "Afficher une notification à l'arrivée d'un nouveau message dans la boîte de réception"
     settingsAppearanceLanguageSection = "Apparence et langue"
     settingsAppearanceLanguageSectionSubtitle = "Thème et langue de l'application"
     settingsPrivacySection = "Confidentialité"

@@ -53,9 +53,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
-import java.io.File
 import rs.tapizlabs.mail.ui.i18n.LocalStrings
 import rs.tapizlabs.mail.ui.i18n.Strings
 import rs.tapizlabs.mail.ui.theme.AppColors
@@ -152,7 +150,10 @@ fun MailDetailScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     uiState.attachments.forEach { attachment ->
-                        AttachmentRow(attachment = attachment)
+                        AttachmentRow(
+                            attachment = attachment,
+                            onDownload = { onReady -> viewModel.downloadAttachment(attachment.id, onReady) },
+                        )
                         Spacer(Modifier.height(8.dp))
                     }
                 }
@@ -420,7 +421,7 @@ private fun PlainTextBody(bodyPlain: String) {
 }
 
 @Composable
-private fun AttachmentRow(attachment: AttachmentUi) {
+private fun AttachmentRow(attachment: AttachmentUi, onDownload: (onReady: (uri: String) -> Unit) -> Unit) {
     val colors = AppColors
     val context = LocalContext.current
     val shape = RoundedCornerShape(12.dp)
@@ -430,8 +431,8 @@ private fun AttachmentRow(attachment: AttachmentUi) {
     ) { destinationUri ->
         val localUri = attachment.localUri ?: return@rememberLauncherForActivityResult
         if (destinationUri != null) {
-            context.contentResolver.openOutputStream(destinationUri)?.use { out ->
-                File(localUri).inputStream().use { input -> input.copyTo(out) }
+            context.contentResolver.openInputStream(android.net.Uri.parse(localUri))?.use { input ->
+                context.contentResolver.openOutputStream(destinationUri)?.use { out -> input.copyTo(out) }
             }
         }
     }
@@ -470,38 +471,45 @@ private fun AttachmentRow(attachment: AttachmentUi) {
                 style = MaterialTheme.typography.labelSmall.copy(color = colors.textMuted),
             )
         }
-        IconButton(
-            onClick = {
-                val localUri = attachment.localUri ?: return@IconButton
-                val file = File(localUri)
-                val contentUri = FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.fileprovider",
-                    file,
-                )
-                val intent = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(contentUri, attachment.mimeType.ifBlank { "*/*" })
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                context.startActivity(intent)
-            },
-            enabled = attachment.localUri != null,
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
-                contentDescription = "Open",
-                tint = colors.textMuted,
-            )
+        fun openAttachment(localUri: String) {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(android.net.Uri.parse(localUri), attachment.mimeType.ifBlank { "*/*" })
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(intent)
         }
-        IconButton(
-            onClick = { saveLauncher.launch(attachment.fileName) },
-            enabled = attachment.localUri != null,
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Download,
-                contentDescription = "Save to device",
-                tint = colors.textMuted,
-            )
+
+        if (attachment.isDownloading) {
+            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                rs.tapizlabs.mail.ui.components.MailPulseSpinner(size = 22.dp, showIcon = false)
+            }
+        } else {
+            IconButton(
+                onClick = {
+                    // Not yet cached locally — fetch it first (see MailDetailViewModel.
+                    // downloadAttachment), then immediately follow through with the open the
+                    // user actually tapped, instead of requiring a second tap once it lands.
+                    attachment.localUri?.let(::openAttachment) ?: onDownload(::openAttachment)
+                },
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                    contentDescription = "Open",
+                    tint = colors.textMuted,
+                )
+            }
+            IconButton(
+                onClick = {
+                    attachment.localUri?.let { saveLauncher.launch(attachment.fileName) }
+                        ?: onDownload { saveLauncher.launch(attachment.fileName) }
+                },
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Download,
+                    contentDescription = "Save to device",
+                    tint = colors.textMuted,
+                )
+            }
         }
     }
 }

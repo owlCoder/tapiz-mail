@@ -37,7 +37,7 @@ import rs.tapizlabs.mail.data.local.entity.SwipeActionConfigEntity
         CategoryRuleEntity::class,
         SwipeActionConfigEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -62,6 +62,15 @@ abstract class MailDatabase : RoomDatabase() {
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE messages ADD COLUMN originFolderId TEXT DEFAULT NULL")
+            }
+        }
+
+        /** Adds [rs.tapizlabs.mail.data.local.entity.AttachmentEntity.partIndex] — needed to
+         * download an attachment's bytes on demand (open/save), since sync only ever stores
+         * envelope metadata for attachments, never their bytes, up front. */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE attachments ADD COLUMN partIndex INTEGER NOT NULL DEFAULT 0")
             }
         }
     }

@@ -167,7 +167,7 @@ fun InboxScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 14.dp)
-                        .padding(bottom = 8.dp),
+                        .padding(top = 8.dp, bottom = 8.dp),
                     horizontalArrangement = Arrangement.End,
                 ) {
                     MailGhostButton(

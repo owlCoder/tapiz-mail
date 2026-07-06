@@ -15,6 +15,7 @@
 local.properties
 */build
 */.gradle
+.kotlin/
 
 # Signing secrets — never commit (release keystore + its passwords)
 *.jks

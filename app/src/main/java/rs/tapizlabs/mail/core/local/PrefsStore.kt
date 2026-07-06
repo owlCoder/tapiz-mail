@@ -1,6 +1,7 @@
 package rs.tapizlabs.mail.core.local
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
@@ -23,6 +24,7 @@ class PrefsStore @Inject constructor(@ApplicationContext private val ctx: Contex
 
     private val KEY_LANGUAGE = stringPreferencesKey("app_language")
     private val KEY_THEME = stringPreferencesKey("app_theme")
+    private val KEY_NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
 
     val languagePref: Flow<AppLanguage> = ctx.prefsDataStore.data.map { prefs ->
         when (prefs[KEY_LANGUAGE]) {
@@ -62,4 +64,18 @@ class PrefsStore @Inject constructor(@ApplicationContext private val ctx: Contex
     }
 
     suspend fun themeBlocking(): ThemePref = themePref.first()
+
+    /** Defaults to `true` (opted in) — matches the existing behavior before this preference
+     * existed, so upgrading users keep getting notified without an extra step. */
+    val notificationsEnabledPref: Flow<Boolean> = ctx.prefsDataStore.data.map { prefs ->
+        prefs[KEY_NOTIFICATIONS_ENABLED] ?: true
+    }
+
+    suspend fun setNotificationsEnabledPref(enabled: Boolean) {
+        ctx.prefsDataStore.edit { prefs ->
+            prefs[KEY_NOTIFICATIONS_ENABLED] = enabled
+        }
+    }
+
+    suspend fun notificationsEnabledBlocking(): Boolean = notificationsEnabledPref.first()
 }

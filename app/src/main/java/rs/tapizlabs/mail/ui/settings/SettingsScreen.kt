@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MailOutline
+import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -68,6 +69,7 @@ fun SettingsScreen(
     onAddAccount: () -> Unit,
     onEditAccount: (accountId: String) -> Unit,
     onOpenMailSettings: () -> Unit,
+    onOpenNotificationsSettings: () -> Unit,
     onOpenAppearanceSettings: () -> Unit,
     onOpenAbout: () -> Unit,
     onOpenPrivacy: () -> Unit,
@@ -115,6 +117,13 @@ fun SettingsScreen(
                 title = strings.settingsMailSection,
                 subtitle = strings.settingsMailSectionSubtitle,
                 onClick = onOpenMailSettings,
+            )
+
+            SettingsNavRow(
+                icon = Icons.Outlined.NotificationsNone,
+                title = strings.settingsNotificationsSection,
+                subtitle = strings.settingsNotificationsSectionSubtitle,
+                onClick = onOpenNotificationsSettings,
             )
 
             SettingsNavRow(

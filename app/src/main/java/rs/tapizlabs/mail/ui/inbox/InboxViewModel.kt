@@ -228,16 +228,17 @@ class InboxViewModel @Inject constructor(
     /** Permanently empties the effective account's Trash — only meant to be called from within
      * the Trash pseudo-category view, after the caller has already confirmed via
      * [rs.tapizlabs.mail.ui.components.MailConfirmDialog] since this is unrecoverable. Deletes
-     * one message at a time through [deleteMessage] (remote IMAP delete + local Room delete)
-     * rather than a bulk local-only delete, so "Empty trash" expunges every message
-     * server-side too instead of silently leaving them on the IMAP server. */
+     * the whole batch server-side through one grouped IMAP connection-per-folder (see
+     * [MailSyncGateway.deleteMessagesRemote]) rather than one connection per message, then
+     * removes the local Room rows — so "Empty trash" expunges every message server-side too,
+     * without opening a separate IMAP connection for each one. */
     fun emptyTrash() {
         val accountId = uiState.value.selectedAccountId ?: return
         viewModelScope.launch {
-            repository.observeTrash(accountId).first().forEach { message ->
-                syncGateway.deleteMessageRemote(message.id)
-                repository.permanentlyDeleteMessage(message.id)
-            }
+            val messageIds = repository.observeTrash(accountId).first().map { it.id }
+            if (messageIds.isEmpty()) return@launch
+            syncGateway.deleteMessagesRemote(messageIds)
+            messageIds.forEach { repository.permanentlyDeleteMessage(it) }
         }
     }
 

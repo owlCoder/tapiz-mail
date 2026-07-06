@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import rs.tapizlabs.mail.data.local.dao.AccountDao
+import rs.tapizlabs.mail.data.local.dao.AttachmentDao
 import rs.tapizlabs.mail.data.local.dao.FolderDao
 import rs.tapizlabs.mail.data.local.dao.MessageDao
 import rs.tapizlabs.mail.data.local.entity.FolderType
@@ -77,6 +78,22 @@ interface MailSyncGateway {
      * delete) so [MessageEntity.originFolderId]/accountId/uid are still available to resolve
      * the message's real IMAP folder. */
     suspend fun deleteMessageRemote(messageId: String): Result<Unit>
+
+    /** Batch counterpart of [deleteMessageRemote] — resolves every message in [messageIds] to
+     * its real IMAP folder+UID, groups them by folder, and deletes each folder's group with a
+     * single connection + one expunge (see [ImapClient.deleteMessagesPermanently]) instead of
+     * one connect/delete/disconnect round-trip per message. Used by "Empty trash" so clearing
+     * dozens of messages doesn't open dozens of IMAP connections one after another. Best-effort
+     * per message, same as [deleteMessageRemote] — an unresolvable/already-gone message is
+     * skipped rather than aborting the whole batch. */
+    suspend fun deleteMessagesRemote(messageIds: List<String>): Result<Unit>
+
+    /** Downloads [attachmentId]'s bytes on demand (envelope sync never fetches attachment
+     * bytes eagerly — see [ImapClient.fetchNewMessages]'s doc) and records the resulting
+     * local file's `content://` URI in Room ([rs.tapizlabs.mail.data.local.dao.AttachmentDao.setLocalUri])
+     * so subsequent opens/saves reuse the cached file instead of re-downloading. Returns the
+     * `content://` URI string on success. */
+    suspend fun downloadAttachment(attachmentId: String): Result<String>
 }
 
 /**
@@ -93,7 +110,9 @@ class DefaultMailSyncGateway @Inject constructor(
     private val imapClient: ImapClient,
     private val messageDao: MessageDao,
     private val folderDao: FolderDao,
+    private val attachmentDao: AttachmentDao,
     private val contentResolver: android.content.ContentResolver,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context,
 ) : MailSyncGateway {
 
     override suspend fun refresh(accountId: String?): Result<Unit> = try {
@@ -188,6 +207,82 @@ class DefaultMailSyncGateway @Inject constructor(
     override suspend fun deleteMessageRemote(messageId: String): Result<Unit> =
         withRemoteMessage(messageId) { store, folderInfo, uid ->
             imapClient.deleteMessagePermanently(store, folderInfo, uid)
+        }
+
+    override suspend fun deleteMessagesRemote(messageIds: List<String>): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                val messages = messageIds.mapNotNull { messageDao.getMessageOnce(it) }
+                // Group by (account, real IMAP folder) so each group needs only one connection
+                // + one expunge, regardless of how many messages it contains.
+                val groups = messages
+                    .filter { !(it.originFolderId ?: it.folderId).startsWith(LOCAL_FOLDER_ID_PREFIX) }
+                    .groupBy { it.accountId to (it.originFolderId ?: it.folderId) }
+
+                groups.forEach { (accountAndFolder, groupMessages) ->
+                    val (accountId, folderId) = accountAndFolder
+                    val account = accountDao.getAccountOnce(accountId) ?: return@forEach
+                    val password = credentialStore.getImapPassword(accountId) ?: return@forEach
+                    val folder = folderDao.getFolderOnce(folderId) ?: return@forEach
+
+                    val store = imapClient.connect(account, password)
+                    try {
+                        val folderInfo = FolderInfo(folder.remoteName, folder.displayName, folder.type)
+                        imapClient.deleteMessagesPermanently(store, folderInfo, groupMessages.map { it.uid })
+                    } finally {
+                        runCatching { store.close() }
+                    }
+                }
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    override suspend fun downloadAttachment(attachmentId: String): Result<String> =
+        withContext(Dispatchers.IO) {
+            try {
+                val attachment = attachmentDao.getAttachmentOnce(attachmentId)
+                    ?: return@withContext Result.failure(IllegalArgumentException("Unknown attachment $attachmentId"))
+                attachment.localUri?.let { return@withContext Result.success(it) }
+
+                val message = messageDao.getMessageOnce(attachment.messageId)
+                    ?: return@withContext Result.failure(IllegalStateException("Unknown message ${attachment.messageId}"))
+                // Attachments only ever belong to a real IMAP-synced message (drafts/local-only
+                // messages have no attachment rows), so folderId always resolves to a real
+                // mailbox here — no originFolderId fallback needed like the Trash case.
+                val folder = folderDao.getFolderOnce(message.folderId)
+                    ?: return@withContext Result.failure(IllegalStateException("Unknown folder ${message.folderId}"))
+                val account = accountDao.getAccountOnce(message.accountId)
+                    ?: return@withContext Result.failure(IllegalStateException("Unknown account ${message.accountId}"))
+                val password = credentialStore.getImapPassword(message.accountId)
+                    ?: return@withContext Result.failure(IllegalStateException("No IMAP credentials for ${message.accountId}"))
+
+                val store = imapClient.connect(account, password)
+                val file = try {
+                    val folderInfo = FolderInfo(folder.remoteName, folder.displayName, folder.type)
+                    val parsedAttachment = rs.tapizlabs.mail.mail.ParsedAttachment(
+                        partIndex = attachment.partIndex,
+                        fileName = attachment.fileName,
+                        mimeType = attachment.mimeType,
+                        sizeBytes = attachment.sizeBytes,
+                        contentId = attachment.contentId,
+                    )
+                    imapClient.downloadAttachment(store, folderInfo, message.uid, parsedAttachment)
+                } finally {
+                    runCatching { store.close() }
+                }
+
+                val contentUri = androidx.core.content.FileProvider.getUriForFile(
+                    appContext,
+                    "${appContext.packageName}.fileprovider",
+                    file,
+                ).toString()
+                attachmentDao.setLocalUri(attachmentId, contentUri)
+                Result.success(contentUri)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
         }
 
     /** Resolves [messageId] to its real IMAP folder + UID, connects, runs [block], and always
