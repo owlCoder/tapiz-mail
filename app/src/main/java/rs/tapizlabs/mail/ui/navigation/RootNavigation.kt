@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -80,7 +81,18 @@ fun RootNavigation(
     // would never actually get seen; it only added a pointless composition step.
     if (startState == RootStartState.Loading) return
 
-    val startDestination = if (startState == RootStartState.NoAccounts) Routes.LANGUAGE_PICKER else Routes.INBOX
+    // Computed ONCE via remember, not on every recomposition: NavHost treats a changed
+    // startDestination as a signal to reset the whole graph back to it, which was silently
+    // discarding the in-progress first-run flow the instant AddAccountViewModel.save() wrote
+    // the new account to Room — startState flips NoAccounts -> HasAccounts mid-navigation
+    // (right as the screen is navigating from Add-Account to NotificationPermissionScreen),
+    // NavHost saw its startDestination prop change from LANGUAGE_PICKER to INBOX, and reset
+    // straight to Inbox instead of honoring the just-issued navigate() call. Forward
+    // navigation after the initial decision is always explicit (navController.navigate),
+    // so this only needs to reflect the state at first composition.
+    val startDestination = remember {
+        if (startState == RootStartState.NoAccounts) Routes.LANGUAGE_PICKER else Routes.INBOX
+    }
 
     LaunchedEffect(startState, pendingMessageId) {
         if (startState == RootStartState.HasAccounts && pendingMessageId != null) {
