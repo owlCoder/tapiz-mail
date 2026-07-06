@@ -15,6 +15,17 @@ enum class AppLanguage(val code: String) {
     FR("fr"),
 }
 
+/** [java.util.Locale] for this language — used by `java.time` formatters (e.g. relative
+ * message timestamps) so date/month names follow the in-app language selection rather than
+ * the device's system locale. Serbian is pinned to the Latin script (`sr-Latn`) explicitly —
+ * plain `Locale.forLanguageTag("sr")` resolves to Cyrillic month names by default (ICU's
+ * default script for "sr"), which would silently mismatch this app's Latin-script Serbian
+ * strings (see [SrStrings]) with Cyrillic-lettered dates. */
+fun AppLanguage.toLocale(): java.util.Locale = when (this) {
+    AppLanguage.SR -> java.util.Locale.forLanguageTag("sr-Latn")
+    else -> java.util.Locale.forLanguageTag(code)
+}
+
 /**
  * i18n dictionary for the app. Strings are resolved from the active [AppLanguage]
  * through [LocalStrings]. Add a `lateinit var` property here, then a value in
@@ -88,9 +99,11 @@ class Strings internal constructor() {
     lateinit var saveAccount: String
 
     // Inbox
-    /** `%d` placeholder for the account count — use [inboxAccountsSynced]. */
-    lateinit var inboxAccountsSyncedTemplate: String
-    fun inboxAccountsSynced(count: Int): String = inboxAccountsSyncedTemplate.format(count)
+    /** Per-language pluralization for the account-count line — a single `"%d naloga"`
+     * template can't cover Serbian's three-way count agreement (1 nalog / 2-4 naloga /
+     * 5+ naloga), so each language sets its own count -> String rule here instead of
+     * formatting one fixed template. */
+    lateinit var inboxAccountsSynced: (Int) -> String
     /** `%d` placeholder for the unread count — use [inboxUnreadCount]. */
     lateinit var inboxUnreadCountTemplate: String
     fun inboxUnreadCount(count: Int): String = inboxUnreadCountTemplate.format(count)
@@ -105,8 +118,15 @@ class Strings internal constructor() {
     /** Fixed pseudo-category chip labels, prepended to the user's own category chips —
      * the only entry points into the Inbox/Drafts/Trash views (no separate top-bar icons). */
     lateinit var inboxChipInbox: String
+    lateinit var inboxChipSent: String
     lateinit var inboxChipDrafts: String
     lateinit var inboxChipTrash: String
+    /** "Empty trash" action shown atop the message list only while the Trash pseudo-category
+     * is selected and non-empty — permanent delete, gated by [MailConfirmDialog]. */
+    lateinit var trashEmptyAllLabel: String
+    lateinit var trashEmptyAllConfirmTitle: String
+    lateinit var trashEmptyAllConfirmMessage: String
+    lateinit var trashEmptyAllConfirmButton: String
 
     // Compose
     lateinit var composeNewMessage: String
@@ -275,9 +295,17 @@ val SrStrings = Strings().apply {
     savingAccount = "Čuvanje…"
     saveAccount = "Sačuvaj nalog"
 
-    inboxAccountsSyncedTemplate = "%d naloga sinhronizovano"
+    // Serbian count agreement: 1 -> "nalog" (singular), 2-4 -> "naloga" (paucal), 0/5+/
+    // 11-14 -> "naloga" (genitive plural) — same surface word for paucal and genitive
+    // plural here, but the singular form genuinely differs ("nalog" vs "naloga").
+    inboxAccountsSynced = { count ->
+        val mod10 = count % 10
+        val mod100 = count % 100
+        val noun = if (mod10 == 1 && mod100 != 11) "nalog" else "naloga"
+        "$count $noun"
+    }
     inboxUnreadCountTemplate = "%d nepročitano"
-    inboxUnreadSubtext = "Automatski sortirano po tvojim pravilima"
+    inboxUnreadSubtext = "Pošta stiže i sinhronizuje se u pozadini"
     inboxNoUnread = "Nema nepročitanih"
     inboxNoMessages = "Nema poruka"
     inboxNoMessagesSubtext = "Nova pošta će se pojaviti ovde nakon sinhronizacije naloga."
@@ -286,8 +314,13 @@ val SrStrings = Strings().apply {
     inboxToday = "Danas"
     inboxYesterday = "Juče"
     inboxChipInbox = "Prijemno"
+    inboxChipSent = "Poslato"
     inboxChipDrafts = "Nedovršeno"
     inboxChipTrash = "Otpad"
+    trashEmptyAllLabel = "Isprazni otpad"
+    trashEmptyAllConfirmTitle = "Isprazniti otpad?"
+    trashEmptyAllConfirmMessage = "Ovo trajno briše sve poruke u otpadu. Ova radnja se ne može poništiti."
+    trashEmptyAllConfirmButton = "Isprazni"
 
     composeNewMessage = "Nova poruka"
     composeFrom = "Od"
@@ -442,9 +475,9 @@ val EnStrings = Strings().apply {
     savingAccount = "Saving…"
     saveAccount = "Save account"
 
-    inboxAccountsSyncedTemplate = "%d accounts synced"
+    inboxAccountsSynced = { count -> if (count == 1) "1 account" else "$count accounts" }
     inboxUnreadCountTemplate = "%d unread"
-    inboxUnreadSubtext = "Sorted automatically by your rules"
+    inboxUnreadSubtext = "New mail syncs automatically in the background"
     inboxNoUnread = "No unread"
     inboxNoMessages = "No messages"
     inboxNoMessagesSubtext = "New mail will show up here once an account is synced."
@@ -453,8 +486,13 @@ val EnStrings = Strings().apply {
     inboxToday = "Today"
     inboxYesterday = "Yesterday"
     inboxChipInbox = "Inbox"
+    inboxChipSent = "Sent"
     inboxChipDrafts = "Drafts"
     inboxChipTrash = "Trash"
+    trashEmptyAllLabel = "Empty trash"
+    trashEmptyAllConfirmTitle = "Empty trash?"
+    trashEmptyAllConfirmMessage = "This permanently deletes every message in the trash. This action cannot be undone."
+    trashEmptyAllConfirmButton = "Empty"
 
     composeNewMessage = "New message"
     composeFrom = "From"
@@ -609,9 +647,9 @@ val DeStrings = Strings().apply {
     savingAccount = "Wird gespeichert…"
     saveAccount = "Konto speichern"
 
-    inboxAccountsSyncedTemplate = "%d Konten synchronisiert"
+    inboxAccountsSynced = { count -> if (count == 1) "1 Konto" else "$count Konten" }
     inboxUnreadCountTemplate = "%d ungelesen"
-    inboxUnreadSubtext = "Automatisch nach deinen Regeln sortiert"
+    inboxUnreadSubtext = "Neue E-Mails werden automatisch im Hintergrund synchronisiert"
     inboxNoUnread = "Keine ungelesenen"
     inboxNoMessages = "Keine Nachrichten"
     inboxNoMessagesSubtext = "Neue Post erscheint hier, sobald ein Konto synchronisiert wurde."
@@ -620,8 +658,13 @@ val DeStrings = Strings().apply {
     inboxToday = "Heute"
     inboxYesterday = "Gestern"
     inboxChipInbox = "Posteingang"
+    inboxChipSent = "Gesendet"
     inboxChipDrafts = "Entwürfe"
     inboxChipTrash = "Papierkorb"
+    trashEmptyAllLabel = "Papierkorb leeren"
+    trashEmptyAllConfirmTitle = "Papierkorb leeren?"
+    trashEmptyAllConfirmMessage = "Dies löscht dauerhaft alle Nachrichten im Papierkorb. Diese Aktion kann nicht rückgängig gemacht werden."
+    trashEmptyAllConfirmButton = "Leeren"
 
     composeNewMessage = "Neue Nachricht"
     composeFrom = "Von"
@@ -776,9 +819,9 @@ val EsStrings = Strings().apply {
     savingAccount = "Guardando…"
     saveAccount = "Guardar cuenta"
 
-    inboxAccountsSyncedTemplate = "%d cuentas sincronizadas"
+    inboxAccountsSynced = { count -> if (count == 1) "1 cuenta" else "$count cuentas" }
     inboxUnreadCountTemplate = "%d sin leer"
-    inboxUnreadSubtext = "Ordenado automáticamente según tus reglas"
+    inboxUnreadSubtext = "El correo nuevo se sincroniza automáticamente en segundo plano"
     inboxNoUnread = "Sin no leídos"
     inboxNoMessages = "Sin mensajes"
     inboxNoMessagesSubtext = "El correo nuevo aparecerá aquí una vez que se sincronice una cuenta."
@@ -787,8 +830,13 @@ val EsStrings = Strings().apply {
     inboxToday = "Hoy"
     inboxYesterday = "Ayer"
     inboxChipInbox = "Bandeja"
+    inboxChipSent = "Enviados"
     inboxChipDrafts = "Borradores"
     inboxChipTrash = "Papelera"
+    trashEmptyAllLabel = "Vaciar papelera"
+    trashEmptyAllConfirmTitle = "¿Vaciar la papelera?"
+    trashEmptyAllConfirmMessage = "Esto elimina permanentemente todos los mensajes de la papelera. Esta acción no se puede deshacer."
+    trashEmptyAllConfirmButton = "Vaciar"
 
     composeNewMessage = "Nuevo mensaje"
     composeFrom = "De"
@@ -943,9 +991,9 @@ val FrStrings = Strings().apply {
     savingAccount = "Enregistrement…"
     saveAccount = "Enregistrer le compte"
 
-    inboxAccountsSyncedTemplate = "%d comptes synchronisés"
+    inboxAccountsSynced = { count -> if (count == 1) "1 compte" else "$count comptes" }
     inboxUnreadCountTemplate = "%d non lus"
-    inboxUnreadSubtext = "Triés automatiquement selon tes règles"
+    inboxUnreadSubtext = "Les nouveaux messages se synchronisent automatiquement en arrière-plan"
     inboxNoUnread = "Aucun non lu"
     inboxNoMessages = "Aucun message"
     inboxNoMessagesSubtext = "Le nouveau courrier apparaîtra ici une fois un compte synchronisé."
@@ -954,8 +1002,13 @@ val FrStrings = Strings().apply {
     inboxToday = "Aujourd'hui"
     inboxYesterday = "Hier"
     inboxChipInbox = "Boîte de réception"
+    inboxChipSent = "Envoyés"
     inboxChipDrafts = "Brouillons"
     inboxChipTrash = "Corbeille"
+    trashEmptyAllLabel = "Vider la corbeille"
+    trashEmptyAllConfirmTitle = "Vider la corbeille ?"
+    trashEmptyAllConfirmMessage = "Cela supprime définitivement tous les messages de la corbeille. Cette action est irréversible."
+    trashEmptyAllConfirmButton = "Vider"
 
     composeNewMessage = "Nouveau message"
     composeFrom = "De"
@@ -1067,6 +1120,13 @@ fun stringsFor(language: AppLanguage): Strings = when (language) {
 
 /** The active dictionary. Defaults to Serbian; overridden at the app root. */
 val LocalStrings = staticCompositionLocalOf { SrStrings }
+
+/** The active UI language itself (not just its [Strings] dictionary) — needed wherever a
+ * `java.time`/`java.util.Locale`-aware formatter (relative timestamps, date labels) must
+ * follow the in-app language selection instead of the device's system locale, which may
+ * differ from what the user picked in this app's own language picker. Provided alongside
+ * [LocalStrings] at the app root (RootNavigation). */
+val LocalAppLanguage = staticCompositionLocalOf { AppLanguage.SR }
 
 /**
  * Snapshot of the active dictionary for non-composable layers (ViewModel /

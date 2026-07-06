@@ -144,6 +144,35 @@ class SyncRepository @Inject constructor(
     private suspend fun highestKnownUid(folderId: String): Long? =
         messageDao.getMessagesForFolder(folderId).first().maxOfOrNull { it.uid }
 
+    private suspend fun lowestKnownUid(folderId: String): Long? =
+        messageDao.getMessagesForFolder(folderId).first().minOfOrNull { it.uid }
+
+    /** "Load more" for one account/folder as the user scrolls to the bottom of the Inbox
+     * list — fetches the next [ImapClient.OLDER_PAGE_SIZE] messages older than whatever is
+     * already cached (see [ImapClient.fetchOlderMessages]) and upserts them the same way a
+     * normal sync does. Returns the number of older messages actually added (0 means either
+     * a connection/auth failure, or the folder's oldest cached message is already sequence
+     * number 1 — i.e. there's nothing left to page in — either way the caller should stop
+     * requesting more for this folder). */
+    suspend fun loadOlderMessages(accountId: String, folderId: String): Int = withContext(Dispatchers.IO) {
+        val account = accountDao.getAccountOnce(accountId) ?: return@withContext 0
+        val password = credentialStore.getImapPassword(accountId) ?: return@withContext 0
+        val folder = folderDao.getFolderOnce(folderId) ?: return@withContext 0
+        val rules = categoryRuleDao.getAllRulesOnce()
+
+        val store = imapClient.connect(account, password)
+        try {
+            val folderInfo = FolderInfo(folder.remoteName, folder.displayName, folder.type)
+            val oldestUid = lowestKnownUid(folderId)
+            val parsed = imapClient.fetchOlderMessages(store, folderInfo, oldestUid, ImapClient.OLDER_PAGE_SIZE)
+            if (parsed.isEmpty()) return@withContext 0
+            upsertMessages(accountId, folderId, parsed, rules)
+            parsed.size
+        } finally {
+            runCatching { store.close() }
+        }
+    }
+
     private suspend fun upsertMessages(
         accountId: String,
         folderId: String,

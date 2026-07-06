@@ -23,7 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import rs.tapizlabs.mail.ui.model.CategoryChipUi
 import rs.tapizlabs.mail.ui.theme.AppColors
 import kotlin.math.abs
@@ -117,11 +116,9 @@ private fun CategoryChip(
         )
         Text(
             text = "${category.count}",
-            style = MaterialTheme.typography.labelSmall.copy(
+            style = MaterialTheme.typography.labelMedium.copy(
                 color = countColor,
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                lineHeight = 11.sp,
+                fontWeight = FontWeight.Medium,
             ),
         )
     }

@@ -52,7 +52,9 @@ val DarkColors = TapizColors(
     shadow = Color(0x66000000),
     primary = Color(0xFF5888FC), // oklch(65% 0.18 265)
     primaryBright = Color(0xFF5888FC),
-    onPrimary = Color(0xFF090B0F), // oklch(15% 0.01 265)
+    onPrimary = Color(0xFFFFFFFF), // white — dark-mode `primary` (#5888FC) is a mid-light blue,
+    // so near-black text/icons on it (the old oklch(15% 0.01 265)) read as low-contrast/muddy;
+    // white gives a cleaner, higher-contrast pairing consistent with the rest of dark-mode text.
     accentSoft = Color(0x1E5888FC),
     signal = Color(0xFFA3E635),
     coral = Color(0xFFE0655A),

@@ -125,6 +125,11 @@ fun MailSheet(
                 ) {
                     Spacer(Modifier.height(16.dp))
                     content()
+                    // Bottom breathing room below the sheet's last element — without this,
+                    // content sits flush against navigationBarsPadding's edge (or the scrim
+                    // on gesture-nav devices where that padding is thin), reading as clipped/
+                    // cut off rather than intentionally ending there.
+                    Spacer(Modifier.height(24.dp))
                 }
             }
         }

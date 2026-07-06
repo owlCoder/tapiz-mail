@@ -31,7 +31,7 @@ import rs.tapizlabs.mail.ui.theme.AppColors
  * reverse loop) so the brand's loading feel is consistent across apps.
  */
 @Composable
-fun MailPulseSpinner(modifier: Modifier = Modifier, size: Dp = 40.dp) {
+fun MailPulseSpinner(modifier: Modifier = Modifier, size: Dp = 40.dp, showIcon: Boolean = true) {
     val colors = AppColors
     val transition = rememberInfiniteTransition(label = "mailPulse")
     val pulseScale by transition.animateFloat(
@@ -55,18 +55,24 @@ fun MailPulseSpinner(modifier: Modifier = Modifier, size: Dp = 40.dp) {
         ) {
             drawCircle(color = colors.primary.copy(alpha = pulseAlpha), style = Stroke(width = 2.5.dp.toPx()))
         }
-        Box(
-            modifier = Modifier
-                .size(size * 0.56f)
-                .background(colors.accentSoft, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.MarkEmailRead,
-                contentDescription = null,
-                tint = colors.primary,
-                modifier = Modifier.size(size * 0.32f),
-            )
+        // Plain pulse ring, no envelope glyph — used for inline/small loading states (test-
+        // connection, "load more older mail") where the brand envelope icon reads as an
+        // unrelated empty circle at that size rather than a mail-themed spinner; the full
+        // icon variant stays the default for larger, standalone loading moments.
+        if (showIcon) {
+            Box(
+                modifier = Modifier
+                    .size(size * 0.56f)
+                    .background(colors.accentSoft, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.MarkEmailRead,
+                    contentDescription = null,
+                    tint = colors.primary,
+                    modifier = Modifier.size(size * 0.32f),
+                )
+            }
         }
     }
 }

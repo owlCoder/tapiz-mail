@@ -58,4 +58,12 @@ data class MessageEntity(
     val categoryId: String?,
     /** False for offline-composed/pending-send messages not yet confirmed on the server. */
     val isSynced: Boolean,
+    /** The [folderId] this message lived in on the IMAP server right before it was moved into
+     * the local-only Trash pseudo-folder (see [rs.tapizlabs.mail.data.repository.MailRepository.moveToTrash]).
+     * Null for messages that were never moved to local Trash (still in their real folder) or
+     * that never had a remote folder to begin with (local-only drafts). [uid] is unaffected by
+     * this move — the real IMAP mailbox is never touched, only this Room row's [folderId]
+     * column changes — so `(accountId, originFolderId, uid)` is enough to resolve the original
+     * server-side message for a remote flag/delete mutation after the local move. */
+    val originFolderId: String? = null,
 )

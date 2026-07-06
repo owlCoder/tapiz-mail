@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import rs.tapizlabs.mail.data.local.entity.MessageEntity
 import rs.tapizlabs.mail.data.repository.MailRepository
 import rs.tapizlabs.mail.data.repository.MailSyncGateway
+import rs.tapizlabs.mail.data.repository.OutgoingAttachmentRef
 import java.util.UUID
 import javax.inject.Inject
 
@@ -152,13 +153,20 @@ class ComposeViewModel @Inject constructor(
                 bcc = splitAddresses(state.bcc),
                 subject = state.subject,
                 bodyPlain = state.body,
-                attachmentUris = state.attachments.map { it.uri },
+                attachments = state.attachments.map { OutgoingAttachmentRef(uri = it.uri, displayName = it.displayName) },
                 inReplyToMessageId = (mode as? ComposeMode.Reply)?.messageId,
             )
             result.fold(
                 onSuccess = {
                     state.draftId?.let { repository.discardDraft(it) }
                     _uiState.value = _uiState.value.copy(isSending = false, sent = true)
+                    // SMTP send alone doesn't touch the account's IMAP Sent folder — most
+                    // servers (Gmail, UNS, etc.) append a copy there themselves, but the
+                    // local Room cache only sees it after the next sync. Without this,
+                    // the message just sent wouldn't show up under the Sent pseudo-category
+                    // until the user happened to pull-to-refresh. Best-effort/fire-and-forget:
+                    // a failed refresh here must not affect the already-successful send.
+                    syncGateway.refresh(accountId)
                 },
                 onFailure = { error ->
                     _uiState.value = _uiState.value.copy(

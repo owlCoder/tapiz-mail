@@ -1,5 +1,12 @@
 package rs.tapizlabs.mail.ui.navigation
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -19,6 +26,7 @@ import rs.tapizlabs.mail.ui.compose.ComposeScreen
 import rs.tapizlabs.mail.ui.detail.MailDetailScreen
 import rs.tapizlabs.mail.ui.i18n.CurrentStrings
 import rs.tapizlabs.mail.ui.i18n.LanguageViewModel
+import rs.tapizlabs.mail.ui.i18n.LocalAppLanguage
 import rs.tapizlabs.mail.ui.i18n.LocalStrings
 import rs.tapizlabs.mail.ui.i18n.stringsFor
 import rs.tapizlabs.mail.ui.inbox.InboxScreen
@@ -76,8 +84,31 @@ fun RootNavigation(
         }
     }
 
-    CompositionLocalProvider(LocalStrings provides stringsFor(language)) {
-    NavHost(navController = navController, startDestination = startDestination) {
+    CompositionLocalProvider(LocalStrings provides stringsFor(language), LocalAppLanguage provides language) {
+    NavHost(
+        navController = navController,
+        startDestination = startDestination,
+        // Signature app-wide transition recipe (matches InboxScreen's category-chip
+        // AnimatedContent and MailSheet's overlay family): 220ms FastOutSlowInEasing in,
+        // 140ms LinearOutSlowInEasing out. Push slides the new screen in from the right
+        // while the old one recedes to the left; pop reverses the direction.
+        enterTransition = {
+            fadeIn(tween(220, easing = FastOutSlowInEasing)) +
+                slideInHorizontally(tween(220, easing = FastOutSlowInEasing)) { it / 4 }
+        },
+        exitTransition = {
+            fadeOut(tween(140, easing = LinearOutSlowInEasing)) +
+                slideOutHorizontally(tween(140, easing = LinearOutSlowInEasing)) { -it / 4 }
+        },
+        popEnterTransition = {
+            fadeIn(tween(220, easing = FastOutSlowInEasing)) +
+                slideInHorizontally(tween(220, easing = FastOutSlowInEasing)) { -it / 4 }
+        },
+        popExitTransition = {
+            fadeOut(tween(140, easing = LinearOutSlowInEasing)) +
+                slideOutHorizontally(tween(140, easing = LinearOutSlowInEasing)) { it / 4 }
+        },
+    ) {
         composable(Routes.LANGUAGE_PICKER) {
             LanguagePickerScreen(
                 selected = language,

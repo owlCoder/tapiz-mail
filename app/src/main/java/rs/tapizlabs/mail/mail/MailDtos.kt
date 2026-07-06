@@ -46,9 +46,20 @@ data class ParsedMessage(
 /** Typed connection/fetch failures so callers (Add-Account flow, sync worker, IDLE
  * service) can react without catching raw checked `MessagingException`s everywhere. */
 sealed class MailError(message: String, cause: Throwable? = null) : Exception(message, cause) {
-    class AuthenticationFailed(cause: Throwable) : MailError("Authentication failed", cause)
-    class ConnectionFailed(cause: Throwable) : MailError("Could not connect to server", cause)
+    class AuthenticationFailed(cause: Throwable) :
+        MailError("Authentication failed: ${cause.reasonSuffix()}", cause)
+    class ConnectionFailed(cause: Throwable) :
+        MailError("Could not connect to server: ${cause.reasonSuffix()}", cause)
     class FolderUnavailable(folderName: String, cause: Throwable) :
-        MailError("Folder unavailable: $folderName", cause)
+        MailError("Folder unavailable: $folderName (${cause.reasonSuffix()})", cause)
     class Unknown(cause: Throwable) : MailError(cause.message ?: "Unknown mail error", cause)
+}
+
+/** Appends the underlying exception's own class + message (e.g. "UnknownHostException:
+ * webmail.uns.ac.rs" or "SocketTimeoutException: connect timed out") so the generic
+ * [MailError] wrapper messages shown in the UI (Add-Account "Test connection" failure,
+ * sync errors) actually say WHY a connection failed instead of just that it failed. */
+private fun Throwable.reasonSuffix(): String {
+    val detail = message?.takeIf { it.isNotBlank() } ?: javaClass.simpleName
+    return "${javaClass.simpleName}: $detail"
 }

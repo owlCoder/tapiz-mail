@@ -80,6 +80,25 @@ class ImapClient @Inject constructor(
         }
     }
 
+    /** Appends [mimeMessage] to [folderInfo]'s remote mailbox (typically the account's Sent
+     * folder) and flags it `\Seen` — mirrors what a webmail client does after a successful
+     * SMTP send. Plain SMTP delivery alone does NOT put a copy in the sender's own Sent
+     * folder; some providers (Gmail) append it server-side automatically as part of
+     * accepting the send, but others (UNS's IMAP server, observed directly) do not, so a
+     * message sent through this app's SMTP-only path would silently never show up in Sent
+     * unless the client does this append itself. Opens READ_WRITE since `appendMessages`
+     * requires write access; closes without expunge (a plain append never marks anything
+     * `\Deleted`). */
+    fun appendToSentFolder(store: IMAPStore, folderInfo: FolderInfo, mimeMessage: MimeMessage) {
+        val folder = store.getFolder(folderInfo.remoteName) as IMAPFolder
+        try {
+            mimeMessage.setFlag(Flags.Flag.SEEN, true)
+            folder.appendMessages(arrayOf(mimeMessage))
+        } catch (e: MessagingException) {
+            throw MailError.FolderUnavailable(folderInfo.remoteName, e)
+        }
+    }
+
     private fun guessFolderType(fullName: String): FolderType {
         val lower = fullName.lowercase()
         return when {
@@ -131,6 +150,62 @@ class ImapClient @Inject constructor(
             folder.fetch(allUidsMessages, fetchProfile)
 
             return allUidsMessages.mapNotNull { msg ->
+                runCatching { parseMessage(folder, msg as MimeMessage) }.getOrNull()
+            }
+        } catch (e: MessagingException) {
+            throw MailError.FolderUnavailable(folderInfo.remoteName, e)
+        } finally {
+            if (folder.isOpen) runCatching { folder.close(false) }
+        }
+    }
+
+    /** Fetches up to [limit] messages older than [oldestKnownUid], for "load more" as the user
+     * scrolls to the bottom of the Inbox list — the initial sync only pulls the newest
+     * [INITIAL_SYNC_LIMIT] messages (see [fetchNewMessages]'s no-`sinceUid` branch), so this is
+     * how the rest of a large mailbox becomes reachable without a slow/expensive full backfill
+     * on first setup.
+     *
+     * Internally converts [oldestKnownUid] to its IMAP sequence number (`Message.getMessageNumber()`)
+     * and walks backwards from there by sequence — sequence number (1 = oldest in the mailbox,
+     * [IMAPFolder.getMessageCount] = newest) is what directly expresses "the N messages before
+     * this position"; UID ordering matches sequence order but isn't guaranteed contiguous/dense,
+     * so it can't be used to compute a fixed-size older page the same way.
+     *
+     * @param oldestKnownUid the UID of the oldest message already cached locally (from Room —
+     * callers already track this per folder, so this avoids making them compute/track a
+     * sequence number of their own). Pass `null` if the folder has no cached messages yet
+     * (returns the newest [limit] instead, same as first sync). Returns an empty list once
+     * the oldest cached message is already sequence number 1 (nothing older left on the
+     * server) — callers should treat that as "no more pages" for this folder. */
+    fun fetchOlderMessages(
+        store: IMAPStore,
+        folderInfo: FolderInfo,
+        oldestKnownUid: Long?,
+        limit: Int,
+    ): List<ParsedMessage> {
+        val folder = store.getFolder(folderInfo.remoteName) as IMAPFolder
+        try {
+            folder.open(Folder.READ_ONLY)
+            val beforeSeqNum = if (oldestKnownUid != null) {
+                val oldestMessage = folder.getMessageByUID(oldestKnownUid) ?: return emptyList()
+                oldestMessage.messageNumber
+            } else {
+                folder.messageCount + 1
+            }
+            if (beforeSeqNum <= 1) return emptyList()
+            val start = maxOf(1, beforeSeqNum - limit)
+            val end = beforeSeqNum - 1
+            val messages = folder.getMessages(start, end)
+            if (messages.isEmpty()) return emptyList()
+
+            val fetchProfile = FetchProfile().apply {
+                add(FetchProfile.Item.ENVELOPE)
+                add(FetchProfile.Item.FLAGS)
+                add(javax.mail.UIDFolder.FetchProfileItem.UID)
+            }
+            folder.fetch(messages, fetchProfile)
+
+            return messages.mapNotNull { msg ->
                 runCatching { parseMessage(folder, msg as MimeMessage) }.getOrNull()
             }
         } catch (e: MessagingException) {
@@ -234,9 +309,66 @@ class ImapClient @Inject constructor(
         }
     }
 
+    /** Flips the `\Seen` flag on the server for one message so other IMAP clients/webmail
+     * agree with this app's local read/unread state. Opens the folder [Folder.READ_WRITE] —
+     * unlike [fetchNewMessages]'s `READ_ONLY` peek — since flag mutation requires write
+     * access; closes without expunging (`close(false)`) since a flag change alone should
+     * never trigger message removal. */
+    fun setMessageSeen(store: IMAPStore, folderInfo: FolderInfo, uid: Long, seen: Boolean) {
+        val folder = store.getFolder(folderInfo.remoteName) as IMAPFolder
+        try {
+            folder.open(Folder.READ_WRITE)
+            val msg = folder.getMessageByUID(uid)
+                ?: throw MailError.Unknown(IllegalStateException("Message uid=$uid not found"))
+            msg.setFlag(Flags.Flag.SEEN, seen)
+        } catch (e: MessagingException) {
+            throw MailError.FolderUnavailable(folderInfo.remoteName, e)
+        } finally {
+            if (folder.isOpen) runCatching { folder.close(false) }
+        }
+    }
+
+    /** Flips the `\Flagged` flag on the server for one message — the IMAP-side counterpart
+     * of the app's local star toggle, so other IMAP clients/webmail see the same starred
+     * state. Same READ_WRITE-open/close(false) recipe as [setMessageSeen]. */
+    fun setMessageFlagged(store: IMAPStore, folderInfo: FolderInfo, uid: Long, flagged: Boolean) {
+        val folder = store.getFolder(folderInfo.remoteName) as IMAPFolder
+        try {
+            folder.open(Folder.READ_WRITE)
+            val msg = folder.getMessageByUID(uid)
+                ?: throw MailError.Unknown(IllegalStateException("Message uid=$uid not found"))
+            msg.setFlag(Flags.Flag.FLAGGED, flagged)
+        } catch (e: MessagingException) {
+            throw MailError.FolderUnavailable(folderInfo.remoteName, e)
+        } finally {
+            if (folder.isOpen) runCatching { folder.close(false) }
+        }
+    }
+
+    /** Marks a message `\Deleted` and expunges it so it is physically removed from the
+     * server mailbox — the IMAP-side counterpart of the app's local "permanently delete
+     * from Trash" action. `close(true)` expunges every `\Deleted`-flagged message in the
+     * folder on close, which is exactly the one message we just flagged here. */
+    fun deleteMessagePermanently(store: IMAPStore, folderInfo: FolderInfo, uid: Long) {
+        val folder = store.getFolder(folderInfo.remoteName) as IMAPFolder
+        try {
+            folder.open(Folder.READ_WRITE)
+            val msg = folder.getMessageByUID(uid)
+                ?: throw MailError.Unknown(IllegalStateException("Message uid=$uid not found"))
+            msg.setFlag(Flags.Flag.DELETED, true)
+        } catch (e: MessagingException) {
+            throw MailError.FolderUnavailable(folderInfo.remoteName, e)
+        } finally {
+            if (folder.isOpen) runCatching { folder.close(true) }
+        }
+    }
+
     companion object {
         private const val SNIPPET_LENGTH = 160
-        private const val INITIAL_SYNC_LIMIT = 50
+        private const val INITIAL_SYNC_LIMIT = 25
+        /** Page size for [fetchOlderMessages] — matches [INITIAL_SYNC_LIMIT] so scrolling to
+         * the bottom of the Inbox always loads another same-sized batch of older mail. */
+        const val OLDER_PAGE_SIZE = 25
         private const val INITIAL_BACKOFF_MS = 5_000L
         private const val MAX_BACKOFF_MS = 5 * 60_000L
     }

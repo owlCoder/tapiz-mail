@@ -1,15 +1,16 @@
 package rs.tapizlabs.mail.ui.inbox
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,9 +36,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MailOutline
+import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -65,10 +67,15 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import rs.tapizlabs.mail.data.local.entity.SwipeAction
 import rs.tapizlabs.mail.ui.components.CategoryChipsRow
+import rs.tapizlabs.mail.ui.components.MailConfirmDialog
+import rs.tapizlabs.mail.ui.components.MailGhostButton
+import rs.tapizlabs.mail.ui.components.MailPulseSpinner
 import rs.tapizlabs.mail.ui.components.SkeletonMessageList
 import rs.tapizlabs.mail.ui.components.SwipeableMessageRow
+import rs.tapizlabs.mail.ui.i18n.LocalAppLanguage
 import rs.tapizlabs.mail.ui.i18n.LocalStrings
 import rs.tapizlabs.mail.ui.i18n.Strings
+import rs.tapizlabs.mail.ui.i18n.toLocale
 import rs.tapizlabs.mail.ui.model.AccountSummaryUi
 import rs.tapizlabs.mail.ui.model.CategoryChipUi
 import rs.tapizlabs.mail.ui.search.SearchScreen
@@ -116,7 +123,9 @@ fun InboxScreen(
     val uiState by viewModel.uiState.collectAsState()
     val colors = AppColors
     val strings = LocalStrings.current
+    val locale = LocalAppLanguage.current.toLocale()
     var showSearch by rememberSaveable { mutableStateOf(false) }
+    var showEmptyTrashConfirm by remember { mutableStateOf(false) }
 
     BackHandler(enabled = showSearch) { showSearch = false }
 
@@ -143,6 +152,7 @@ fun InboxScreen(
 
             val pseudoChips = listOf(
                 CategoryChipUi(id = null, name = strings.inboxChipInbox, count = uiState.inboxCount, colorIndex = 0),
+                CategoryChipUi(id = PSEUDO_CATEGORY_SENT, name = strings.inboxChipSent, count = uiState.sentCount, colorIndex = 0),
                 CategoryChipUi(id = PSEUDO_CATEGORY_DRAFTS, name = strings.inboxChipDrafts, count = uiState.draftsCount, colorIndex = 0),
                 CategoryChipUi(id = PSEUDO_CATEGORY_TRASH, name = strings.inboxChipTrash, count = uiState.trashCount, colorIndex = 0),
             )
@@ -152,6 +162,23 @@ fun InboxScreen(
                 onSelectCategory = viewModel::selectCategory,
             )
 
+            if (uiState.isTrashSelected && uiState.messages.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp)
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    MailGhostButton(
+                        text = strings.trashEmptyAllLabel,
+                        icon = Icons.Outlined.DeleteSweep,
+                        onClick = { showEmptyTrashConfirm = true },
+                        height = 36.dp,
+                    )
+                }
+            }
+
             val pullState = rememberPullToRefreshState()
             PullToRefreshBox(
                 isRefreshing = uiState.isRefreshing,
@@ -159,25 +186,53 @@ fun InboxScreen(
                 state = pullState,
                 modifier = Modifier.fillMaxSize(),
             ) {
-                // Crossfade keyed on the selected chip (Inbox/Drafts/Trash/category) so
-                // switching between them fades the list content instead of an abrupt cut —
-                // isLoading/empty/list are all included in the same crossfaded surface.
-                Crossfade(
+                // AnimatedContent keyed on the selected chip (Inbox/Drafts/Trash/category) —
+                // same horizontal slide+fade as the NavHost's default screen-to-screen
+                // transition (Compose push/pop), so switching chips reads as consistent with
+                // the rest of the app's navigation rather than an unrelated vertical motion.
+                AnimatedContent(
                     targetState = uiState.selectedCategoryId,
-                    animationSpec = tween(180),
-                    label = "inbox_category_crossfade",
+                    transitionSpec = {
+                        (fadeIn(tween(220, easing = FastOutSlowInEasing)) +
+                            slideInHorizontally(tween(220, easing = FastOutSlowInEasing)) { it / 6 })
+                            .togetherWith(
+                                fadeOut(tween(140, easing = LinearOutSlowInEasing)) +
+                                    slideOutHorizontally(tween(140, easing = LinearOutSlowInEasing)) { -it / 6 },
+                            )
+                    },
+                    label = "inbox_category_transition",
                 ) {
                     when {
                         uiState.isLoading -> InboxLoadingState()
                         uiState.messages.isEmpty() -> InboxEmptyState(strings)
-                        else -> LazyColumn(
+                        else -> {
+                        val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+
+                        // Fires loadMore() once the user scrolls within 5 rows of the bottom —
+                        // only for the main Inbox/Sent views (loadMore() itself no-ops for
+                        // Drafts/Trash/user categories, see its doc), so a large mailbox's
+                        // rest becomes reachable by scrolling instead of only ever showing
+                        // the newest INITIAL_SYNC_LIMIT messages from first sync.
+                        val shouldLoadMore by androidx.compose.runtime.remember {
+                            androidx.compose.runtime.derivedStateOf {
+                                val layoutInfo = listState.layoutInfo
+                                val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                                lastVisible >= layoutInfo.totalItemsCount - 5
+                            }
+                        }
+                        androidx.compose.runtime.LaunchedEffect(shouldLoadMore, uiState.messages.size) {
+                            if (shouldLoadMore) viewModel.loadMore()
+                        }
+
+                        LazyColumn(
+                            state = listState,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             itemsIndexed(uiState.messages, key = { _, message -> message.id }) { index, message ->
-                                val previousLabel = uiState.messages.getOrNull(index - 1)?.let { dayLabel(it.sentAt, strings) }
-                                val label = dayLabel(message.sentAt, strings)
+                                val previousLabel = uiState.messages.getOrNull(index - 1)?.let { dayLabel(it.sentAt, strings, locale) }
+                                val label = dayLabel(message.sentAt, strings, locale)
                                 if (label != previousLabel) {
                                     DaySectionLabel(text = label)
                                 }
@@ -212,9 +267,34 @@ fun InboxScreen(
                                     },
                                     leftAction = if (uiState.isTrashSelected) SwipeAction.DELETE else uiState.swipeLeftAction,
                                     rightAction = if (uiState.isTrashSelected) SwipeAction.MARK_UNREAD else uiState.swipeRightAction,
-                                    modifier = Modifier.clip(RoundedCornerShape(10.dp)),
+                                    modifier = Modifier
+                                        .animateItem(
+                                            // Explicit, softer specs (matching the app's
+                                            // 220ms-in/280ms-out signature feel) instead of
+                                            // Compose's default fade/spring — the default
+                                            // disappearance was fast enough that a single
+                                            // swiped-away row read as an abrupt jump/skip
+                                            // rather than a smooth removal (contrast with
+                                            // "Empty trash", which removes rows one-by-one
+                                            // with a gap between each, so the default timing
+                                            // never looked rushed there).
+                                            fadeOutSpec = tween(280, easing = LinearOutSlowInEasing),
+                                            placementSpec = tween(280, easing = FastOutSlowInEasing),
+                                        )
+                                        .clip(RoundedCornerShape(10.dp)),
                                 )
                             }
+                            if (uiState.isLoadingMore) {
+                                item {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        MailPulseSpinner(size = 28.dp, showIcon = false)
+                                    }
+                                }
+                            }
+                        }
                         }
                     }
                 }
@@ -250,6 +330,19 @@ fun InboxScreen(
             onOpenMessage = onOpenMessage,
             onDismiss = { showSearch = false },
             modifier = Modifier.fillMaxSize(),
+        )
+
+        MailConfirmDialog(
+            visible = showEmptyTrashConfirm,
+            title = strings.trashEmptyAllConfirmTitle,
+            message = strings.trashEmptyAllConfirmMessage,
+            confirmLabel = strings.trashEmptyAllConfirmButton,
+            cancelLabel = strings.settingsCancel,
+            onConfirm = {
+                viewModel.emptyTrash()
+                showEmptyTrashConfirm = false
+            },
+            onDismiss = { showEmptyTrashConfirm = false },
         )
     }
 }
@@ -378,8 +471,6 @@ private fun InboxTopBar(
 
         Spacer(Modifier.width(8.dp))
 
-        // Reference shows a 34x34 tinted tile with a 3-line "sliders" icon here — wired
-        // to Settings since there's no bottom-nav tab for it in this no-tab-bar IA.
         Box(
             modifier = Modifier
                 .size(34.dp)
@@ -389,7 +480,7 @@ private fun InboxTopBar(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = Icons.Outlined.Tune,
+                imageVector = Icons.Outlined.Settings,
                 contentDescription = null,
                 tint = colors.textPrimary,
                 modifier = Modifier.size(16.dp),
@@ -485,13 +576,16 @@ private fun DaySectionLabel(text: String) {
     )
 }
 
-private fun dayLabel(epochMillis: Long, strings: Strings): String {
+private fun dayLabel(epochMillis: Long, strings: Strings, locale: java.util.Locale): String {
     val zone = ZoneId.systemDefault()
     val then = Instant.ofEpochMilli(epochMillis).atZone(zone).toLocalDate()
     val today = Instant.now().atZone(zone).toLocalDate()
     return when (then) {
         today -> strings.inboxToday
         today.minusDays(1) -> strings.inboxYesterday
-        else -> then.toString()
+        // LocalDate.toString() is always ISO-8601 ("2026-06-12") regardless of locale —
+        // format explicitly against the in-app language so this reads like the rest of the
+        // UI (e.g. "12. jun" for sr) instead of a raw ISO date.
+        else -> then.format(java.time.format.DateTimeFormatter.ofPattern("d. MMM", locale))
     }
 }

@@ -213,7 +213,7 @@ private fun ManualFormPreview(imapHostLabel: String, usernameLabel: String) {
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            text = "mail.university.edu",
+            text = "webmail.uns.ac.rs",
             style = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
             modifier = Modifier
                 .fillMaxWidth()
@@ -227,7 +227,7 @@ private fun ManualFormPreview(imapHostLabel: String, usernameLabel: String) {
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            text = "arlene@school.edu",
+            text = "student@uns.ac.rs",
             style = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
             modifier = Modifier
                 .fillMaxWidth()

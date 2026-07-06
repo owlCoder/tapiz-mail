@@ -23,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -32,11 +33,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import rs.tapizlabs.mail.ui.i18n.LocalAppLanguage
+import rs.tapizlabs.mail.ui.i18n.toLocale
 import rs.tapizlabs.mail.ui.model.MessageListItemUi
 import rs.tapizlabs.mail.ui.theme.AppColors
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 import kotlin.math.abs
 
 /**
@@ -65,7 +69,7 @@ fun MessageListItem(
             .fillMaxWidth()
             .clickable(
                 interactionSource = interactionSource,
-                indication = null,
+                indication = ripple(),
                 onClick = onClick,
             )
             .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -100,8 +104,9 @@ fun MessageListItem(
                     modifier = Modifier.weight(1f),
                 )
                 Spacer(Modifier.width(8.dp))
+                val appLanguage = LocalAppLanguage.current
                 Text(
-                    text = relativeTime(message.sentAt),
+                    text = relativeTime(message.sentAt, appLanguage.toLocale()),
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = colors.textMuted,
                         fontSize = 11.sp,
@@ -190,10 +195,14 @@ private fun AvatarInitial(name: String, colorIndex: Int) {
 
 private fun senderHashIndex(fromAddress: String): Int = fromAddress.hashCode()
 
-private val relativeTimeToday: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
-private val relativeTimeOlder: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d")
-
-private fun relativeTime(epochMillis: Long): String {
+/** Built per-call against [locale] (not a fixed top-level formatter) so the month name
+ * ("MMM") and any locale-specific separators follow the in-app language selection
+ * ([rs.tapizlabs.mail.ui.i18n.LocalAppLanguage]) instead of the device's system locale —
+ * without an explicit [Locale], [DateTimeFormatter.ofPattern] silently uses
+ * `Locale.getDefault()`, which can disagree with what the user picked in this app. */
+private fun relativeTime(epochMillis: Long, locale: Locale): String {
+    val relativeTimeToday = DateTimeFormatter.ofPattern("HH:mm", locale)
+    val relativeTimeOlder = DateTimeFormatter.ofPattern("MMM d", locale)
     val zone = ZoneId.systemDefault()
     val then = Instant.ofEpochMilli(epochMillis).atZone(zone)
     val now = Instant.now().atZone(zone)

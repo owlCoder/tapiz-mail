@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 import rs.tapizlabs.mail.data.local.entity.AccountEntity
 import rs.tapizlabs.mail.data.local.entity.MessageEntity
 import rs.tapizlabs.mail.data.repository.MailRepository
+import rs.tapizlabs.mail.data.repository.MailSyncGateway
 import rs.tapizlabs.mail.ui.model.AccountSummaryUi
 import rs.tapizlabs.mail.ui.model.MessageListItemUi
 import javax.inject.Inject
@@ -40,6 +41,7 @@ private const val SEARCH_DEBOUNCE_MS = 300L
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val repository: MailRepository,
+    private val syncGateway: MailSyncGateway,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
@@ -88,6 +90,7 @@ class SearchViewModel @Inject constructor(
     fun toggleStar(messageId: String, currentlyStarred: Boolean) {
         viewModelScope.launch {
             repository.setStarred(messageId, !currentlyStarred)
+            syncGateway.setMessageStarredRemote(messageId, !currentlyStarred)
         }
     }
 }

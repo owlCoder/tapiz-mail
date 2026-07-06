@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import rs.tapizlabs.mail.data.local.entity.AttachmentEntity
 import rs.tapizlabs.mail.data.local.entity.MessageEntity
 import rs.tapizlabs.mail.data.repository.MailRepository
+import rs.tapizlabs.mail.data.repository.MailSyncGateway
 import javax.inject.Inject
 
 data class MailDetailUiState(
@@ -44,6 +45,7 @@ data class AttachmentUi(
 class MailDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: MailRepository,
+    private val syncGateway: MailSyncGateway,
 ) : ViewModel() {
 
     private val messageId: String = checkNotNull(savedStateHandle["messageId"]) {
@@ -71,18 +73,23 @@ class MailDetailViewModel @Inject constructor(
         // flip is the only place `\Seen` gets set from the read path.
         viewModelScope.launch {
             repository.setRead(messageId, true)
+            // Best-effort IMAP `\Seen` mirror — see InboxViewModel.markRead for the same
+            // fire-and-forget contract; local Room state above already drives the UI.
+            syncGateway.setMessageSeenRemote(messageId, true)
         }
     }
 
     fun toggleStar(currentlyStarred: Boolean) {
         viewModelScope.launch {
             repository.setStarred(messageId, !currentlyStarred)
+            syncGateway.setMessageStarredRemote(messageId, !currentlyStarred)
         }
     }
 
     fun markUnread() {
         viewModelScope.launch {
             repository.setRead(messageId, false)
+            syncGateway.setMessageSeenRemote(messageId, false)
         }
     }
 

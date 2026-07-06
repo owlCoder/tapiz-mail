@@ -230,7 +230,7 @@ private fun ConnectionSection(state: AddAccountUiState, onTest: () -> Unit, stri
 
         when (state.connectionTestState) {
             ConnectionTestState.TESTING -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MailPulseSpinner(size = 22.dp)
+                MailPulseSpinner(size = 22.dp, showIcon = false)
                 Text(text = strings.verifyingSettings, color = colors.textMuted, style = MaterialTheme.typography.bodySmall)
             }
             ConnectionTestState.SUCCESS -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

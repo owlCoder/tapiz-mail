@@ -62,6 +62,18 @@ interface MailRepository {
     suspend fun moveToTrash(messageId: String)
     suspend fun restoreFromTrash(messageId: String)
     suspend fun permanentlyDeleteMessage(messageId: String)
+
+    /** Messages sent from this account (the account's real IMAP Sent mailbox, synced like any
+     * other folder) — kept out of the main Inbox view (see [observeMessagesForAccount]) so
+     * sent mail doesn't mix in with received mail; this pseudo-category is the one place to
+     * see "what I sent" separately. */
+    fun observeSent(accountId: String): Flow<List<MessageEntity>>
+
+    /** Resolves the account's real IMAP folder id for [type] (e.g. its INBOX or Sent
+     * mailbox) — used by "load more" (see [rs.tapizlabs.mail.data.repository.MailSyncGateway.loadOlderMessages])
+     * to know which folder to page against for whichever pseudo-category is currently
+     * selected. Returns null before the account's first sync has provisioned its folders. */
+    suspend fun getFolderIdByType(accountId: String, type: FolderType): String?
 }
 
 @Singleton
@@ -81,10 +93,13 @@ class RoomMailRepository @Inject constructor(
         accountDao.getAccountOnce(accountId)
 
     override fun observeMessagesForAccount(accountId: String): Flow<List<MessageEntity>> =
-        messageDao.getMessagesForAccount(accountId).map { messages ->
-            // Excludes the local Trash folder — a message moved there (see moveToTrash) must
-            // disappear from the normal Inbox view even though it's still the same account's
-            // row; the Trash pseudo-category is the only place it should still show up.
+        // Excludes the real IMAP Sent folder (join-based, see getMessagesForAccountExcludingFolderType)
+        // so sent mail doesn't mix into the main Inbox view — Sent has its own pseudo-category
+        // (see observeSent) mirroring how Drafts/Trash are split out.
+        messageDao.getMessagesForAccountExcludingFolderType(accountId, FolderType.SENT).map { messages ->
+            // Also excludes the local Trash folder — a message moved there (see moveToTrash)
+            // must disappear from the normal Inbox view even though it's still the same
+            // account's row; the Trash pseudo-category is the only place it should still show up.
             messages.filter { it.folderId != "local-trash-$accountId" }
         }
 
@@ -144,7 +159,18 @@ class RoomMailRepository @Inject constructor(
     override suspend fun moveToTrash(messageId: String) {
         val message = messageDao.getMessageOnce(messageId) ?: return
         val trashFolderId = getOrCreateTrashFolder(message.accountId)
-        messageDao.moveToFolder(messageId, trashFolderId)
+        // Remembers the message's real IMAP folder (originFolderId) before overwriting
+        // folderId with the local-only Trash pseudo-folder — the IMAP UID itself doesn't
+        // change (the real mailbox is never touched here), so accountId+originFolderId+uid
+        // is enough to resolve this message back to its server-side location later for a
+        // remote seen-flag/delete mutation (see MailSyncGateway.deleteMessageRemote). Only
+        // set on the first move into Trash; a message already in Trash keeps its original
+        // origin rather than overwriting it with the Trash folder id itself.
+        val updated = message.copy(
+            folderId = trashFolderId,
+            originFolderId = message.originFolderId ?: message.folderId,
+        )
+        messageDao.upsert(updated)
     }
 
     override suspend fun restoreFromTrash(messageId: String) {
@@ -157,6 +183,12 @@ class RoomMailRepository @Inject constructor(
     }
 
     override suspend fun permanentlyDeleteMessage(messageId: String) = messageDao.deleteById(messageId)
+
+    override fun observeSent(accountId: String): Flow<List<MessageEntity>> =
+        messageDao.getMessagesForAccountByFolderType(accountId, FolderType.SENT)
+
+    override suspend fun getFolderIdByType(accountId: String, type: FolderType): String? =
+        folderDao.getFolderOnceByType(accountId, type)?.id
 
     /** Drafts folders created for local-only drafts are never IMAP-synced, so their id
      * doesn't need to match any remote mailbox — a stable per-account id keeps

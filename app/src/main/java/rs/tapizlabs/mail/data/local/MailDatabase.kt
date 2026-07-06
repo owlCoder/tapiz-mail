@@ -3,6 +3,8 @@ package rs.tapizlabs.mail.data.local
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import rs.tapizlabs.mail.data.local.converters.Converters
 import rs.tapizlabs.mail.data.local.dao.AccountDao
 import rs.tapizlabs.mail.data.local.dao.AttachmentDao
@@ -35,7 +37,7 @@ import rs.tapizlabs.mail.data.local.entity.SwipeActionConfigEntity
         CategoryRuleEntity::class,
         SwipeActionConfigEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -50,5 +52,17 @@ abstract class MailDatabase : RoomDatabase() {
 
     companion object {
         const val DATABASE_NAME = "tapiz_mail.db"
+
+        /** Adds [rs.tapizlabs.mail.data.local.entity.MessageEntity.originFolderId], used to
+         * remember a message's real IMAP folder after it's moved into the local-only Trash
+         * pseudo-folder, so a later "delete forever"/read-flag sync can still find it on the
+         * server. Nullable with no default needed at the SQL level beyond `NULL`, since
+         * existing rows (never moved to local Trash under the old schema) correctly have no
+         * origin folder to record. */
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE messages ADD COLUMN originFolderId TEXT DEFAULT NULL")
+            }
+        }
     }
 }

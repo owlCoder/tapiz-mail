@@ -47,11 +47,15 @@ class SmtpClient @Inject constructor(
     private val contentResolver: ContentResolver,
 ) {
 
+    /** Sends [message] and returns the built [MimeMessage] on success — callers (see
+     * [rs.tapizlabs.mail.data.repository.DefaultMailSyncGateway]) reuse it to append a copy
+     * into the account's Sent folder afterwards, since plain SMTP delivery never does that
+     * itself (see [rs.tapizlabs.mail.mail.ImapClient.appendToSentFolder]). */
     suspend fun send(
         account: AccountEntity,
         password: String,
         message: OutgoingMessage,
-    ): Result<Unit> = withContext(Dispatchers.IO) {
+    ): Result<MimeMessage> = withContext(Dispatchers.IO) {
         try {
             val session = MailSession.smtpSession(account)
             val mimeMessage = buildMimeMessage(session, account, message)
@@ -64,7 +68,7 @@ class SmtpClient @Inject constructor(
             } finally {
                 runCatching { transport.close() }
             }
-            Result.success(Unit)
+            Result.success(mimeMessage)
         } catch (e: AuthenticationFailedException) {
             Result.failure(MailError.AuthenticationFailed(e))
         } catch (e: MessagingException) {

@@ -8,8 +8,8 @@ import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -97,7 +97,15 @@ fun SearchScreen(
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
 
-    BackHandler(enabled = visible, onBack = onDismiss)
+    // Hides the keyboard before notifying the caller — otherwise the IME closing collapses
+    // this screen's imePadding() at its own speed, fighting the panel's slide-out exit
+    // animation and making the close transition look skipped/snapped shut instead of smooth.
+    val dismiss = {
+        keyboard?.hide()
+        onDismiss()
+    }
+
+    BackHandler(enabled = visible, onBack = dismiss)
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val maxPanelHeight = maxHeight * 0.88f
@@ -117,18 +125,21 @@ fun SearchScreen(
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,
-                        onClick = onDismiss,
+                        onClick = dismiss,
                     ),
             )
         }
 
-        // Floating panel — drops in from the top, inset from the edges so it visibly floats.
+        // Floating panel — same horizontal slide+fade + exact timings AND offset fraction
+        // (it / 4, not a full-width slide) as the NavHost's enterTransition/exitTransition
+        // (RootNavigation.kt push/Compose screen), so opening Search reads as the literal
+        // same Compose-push transition applied to an overlay instead of a route.
         AnimatedVisibility(
             visible = visible,
-            enter = slideInVertically(tween(240, easing = FastOutSlowInEasing)) { -it } +
-                fadeIn(tween(240, easing = FastOutSlowInEasing)),
-            exit = slideOutVertically(tween(160, easing = LinearOutSlowInEasing)) { -it } +
-                fadeOut(tween(160, easing = LinearOutSlowInEasing)),
+            enter = slideInHorizontally(tween(220, easing = FastOutSlowInEasing)) { it / 4 } +
+                fadeIn(tween(220, easing = FastOutSlowInEasing)),
+            exit = slideOutHorizontally(tween(140, easing = LinearOutSlowInEasing)) { it / 4 } +
+                fadeOut(tween(140, easing = LinearOutSlowInEasing)),
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth(),
@@ -141,7 +152,10 @@ fun SearchScreen(
                     .fillMaxWidth()
                     .heightIn(max = maxPanelHeight)
                     .clip(panelShape)
-                    .background(colors.card)
+                    // Same canvasTop the Compose screen uses (containerColor), not `card` —
+                    // `card` is white in light mode, which made this overlay read as a
+                    // different, disconnected surface instead of the app's own background.
+                    .background(colors.canvasTop)
                     .imePadding(),
             ) {
                 // Header: back + search field, then filter chips — pinned; results scroll below.
@@ -153,7 +167,7 @@ fun SearchScreen(
                         .padding(horizontal = 10.dp, vertical = 10.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onDismiss) {
+                        IconButton(onClick = dismiss) {
                             Icon(
                                 Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                                 contentDescription = "Back",
@@ -212,6 +226,7 @@ fun SearchScreen(
                                     message = message,
                                     onClick = { onOpenMessage(message.id) },
                                     onToggleStar = { viewModel.toggleStar(message.id, message.isStarred) },
+                                    modifier = Modifier.animateItem(),
                                 )
                                 HorizontalDivider(color = colors.stroke.copy(alpha = 0.4f))
                             }
