@@ -58,6 +58,24 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE folderId = :folderId AND uid = :uid LIMIT 1")
     suspend fun findByUid(folderId: String, uid: Long): MessageEntity?
 
+    /** Same lookup as [findByUid] but also matches messages moved to the local Trash
+     * pseudo-folder whose [MessageEntity.originFolderId] was this real folder — a moved-to-
+     * trash message keeps its IMAP [MessageEntity.uid] but its [MessageEntity.folderId] no
+     * longer equals [folderId], so a plain folderId+uid lookup would miss it and callers would
+     * wrongly treat it as never-seen. */
+    @Query(
+        "SELECT * FROM messages WHERE uid = :uid AND (folderId = :folderId OR originFolderId = :folderId) LIMIT 1"
+    )
+    suspend fun findByUidIncludingTrash(folderId: String, uid: Long): MessageEntity?
+
+    /** Highest [MessageEntity.uid] this account has ever seen for [folderId], including
+     * messages currently sitting in the local Trash pseudo-folder (see
+     * [findByUidIncludingTrash]) — without this, [rs.tapizlabs.mail.data.repository.SyncRepository]'s
+     * "since last uid" sync would miss that a moved-to-trash message's uid was already seen
+     * and re-fetch/re-notify for it after every refresh. */
+    @Query("SELECT MAX(uid) FROM messages WHERE folderId = :folderId OR originFolderId = :folderId")
+    suspend fun getHighestKnownUidIncludingTrash(folderId: String): Long?
+
     @Query("SELECT * FROM messages WHERE isSynced = 0")
     fun getPendingMessages(): Flow<List<MessageEntity>>
 

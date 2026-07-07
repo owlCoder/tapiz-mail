@@ -25,6 +25,7 @@ class PrefsStore @Inject constructor(@ApplicationContext private val ctx: Contex
     private val KEY_LANGUAGE = stringPreferencesKey("app_language")
     private val KEY_THEME = stringPreferencesKey("app_theme")
     private val KEY_NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
+    private val KEY_NOTIFICATION_SOUND_ENABLED = booleanPreferencesKey("notification_sound_enabled")
 
     val languagePref: Flow<AppLanguage> = ctx.prefsDataStore.data.map { prefs ->
         when (prefs[KEY_LANGUAGE]) {
@@ -78,4 +79,16 @@ class PrefsStore @Inject constructor(@ApplicationContext private val ctx: Contex
     }
 
     suspend fun notificationsEnabledBlocking(): Boolean = notificationsEnabledPref.first()
+
+    /** Defaults to `false` (silent) — the user asked for new-mail notifications to be
+     * non-intrusive by default; sound is an explicit opt-in from Settings, not a surprise. */
+    val notificationSoundEnabledPref: Flow<Boolean> = ctx.prefsDataStore.data.map { prefs ->
+        prefs[KEY_NOTIFICATION_SOUND_ENABLED] ?: false
+    }
+
+    suspend fun setNotificationSoundEnabledPref(enabled: Boolean) {
+        ctx.prefsDataStore.edit { prefs ->
+            prefs[KEY_NOTIFICATION_SOUND_ENABLED] = enabled
+        }
+    }
 }

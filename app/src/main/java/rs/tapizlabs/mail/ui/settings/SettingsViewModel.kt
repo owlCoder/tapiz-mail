@@ -36,6 +36,7 @@ data class SettingsUiState(
     val themePref: ThemePref = ThemePref.System,
     val languagePref: AppLanguage = AppLanguage.SR,
     val notificationsEnabled: Boolean = true,
+    val notificationSoundEnabled: Boolean = false,
 ) {
     val selectedAccount: AccountEntity?
         get() = accounts.find { it.id == selectedAccountId } ?: accounts.firstOrNull()
@@ -62,7 +63,11 @@ class SettingsViewModel @Inject constructor(
         Quintuple(accounts, categories, resolvedSelectedId, themePref, languagePref)
     }.flatMapLatest { (accounts, categories, resolvedSelectedId, themePref, languagePref) ->
         val swipeFlow = resolvedSelectedId?.let { accountRepository.observeSwipeConfig(it) } ?: flowOf(null)
-        combine(swipeFlow, prefsStore.notificationsEnabledPref) { swipeConfig, notificationsEnabled ->
+        combine(
+            swipeFlow,
+            prefsStore.notificationsEnabledPref,
+            prefsStore.notificationSoundEnabledPref,
+        ) { swipeConfig, notificationsEnabled, notificationSoundEnabled ->
             SettingsUiState(
                 accounts = accounts,
                 categories = categories,
@@ -71,6 +76,7 @@ class SettingsViewModel @Inject constructor(
                 themePref = themePref,
                 languagePref = languagePref,
                 notificationsEnabled = notificationsEnabled,
+                notificationSoundEnabled = notificationSoundEnabled,
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
@@ -89,6 +95,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setNotificationsEnabled(enabled: Boolean) {
         viewModelScope.launch { prefsStore.setNotificationsEnabledPref(enabled) }
+    }
+
+    fun setNotificationSoundEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefsStore.setNotificationSoundEnabledPref(enabled) }
     }
 
     /** Applies a new sync interval to an account and reschedules its background sync. */

@@ -224,6 +224,8 @@ class Strings internal constructor() {
     lateinit var settingsNotificationsSectionSubtitle: String
     lateinit var settingsNotificationsToggleLabel: String
     lateinit var settingsNotificationsToggleSubtext: String
+    lateinit var settingsNotificationsSoundToggleLabel: String
+    lateinit var settingsNotificationsSoundToggleSubtext: String
     lateinit var settingsAppearanceLanguageSection: String
     lateinit var settingsAppearanceLanguageSectionSubtitle: String
     lateinit var settingsPrivacySection: String
@@ -412,6 +414,8 @@ val SrStrings = Strings().apply {
     settingsNotificationsSectionSubtitle = "Uključi ili isključi obaveštenja o novoj pošti"
     settingsNotificationsToggleLabel = "Obaveštenja o novoj pošti"
     settingsNotificationsToggleSubtext = "Prikaži obaveštenje kada stigne nova poruka u Inbox"
+    settingsNotificationsSoundToggleLabel = "Zvuk obaveštenja"
+    settingsNotificationsSoundToggleSubtext = "Pusti zvuk uz obaveštenje o novoj pošti"
     settingsAppearanceLanguageSection = "Izgled i jezik"
     settingsAppearanceLanguageSectionSubtitle = "Tema i jezik aplikacije"
     settingsPrivacySection = "Privatnost"
@@ -588,6 +592,8 @@ val EnStrings = Strings().apply {
     settingsNotificationsSectionSubtitle = "Turn new-mail notifications on or off"
     settingsNotificationsToggleLabel = "New mail notifications"
     settingsNotificationsToggleSubtext = "Show a notification when new mail arrives in Inbox"
+    settingsNotificationsSoundToggleLabel = "Notification sound"
+    settingsNotificationsSoundToggleSubtext = "Play a sound with new-mail notifications"
     settingsAppearanceLanguageSection = "Appearance & language"
     settingsAppearanceLanguageSectionSubtitle = "Theme and app language"
     settingsPrivacySection = "Privacy"
@@ -764,6 +770,8 @@ val DeStrings = Strings().apply {
     settingsNotificationsSectionSubtitle = "Benachrichtigungen für neue Post ein- oder ausschalten"
     settingsNotificationsToggleLabel = "Benachrichtigungen für neue Post"
     settingsNotificationsToggleSubtext = "Benachrichtigung anzeigen, wenn neue Post im Posteingang eintrifft"
+    settingsNotificationsSoundToggleLabel = "Benachrichtigungston"
+    settingsNotificationsSoundToggleSubtext = "Bei neuen E-Mail-Benachrichtigungen einen Ton abspielen"
     settingsAppearanceLanguageSection = "Erscheinungsbild & Sprache"
     settingsAppearanceLanguageSectionSubtitle = "Design und Sprache der App"
     settingsPrivacySection = "Datenschutz"
@@ -940,6 +948,8 @@ val EsStrings = Strings().apply {
     settingsNotificationsSectionSubtitle = "Activa o desactiva las notificaciones de correo nuevo"
     settingsNotificationsToggleLabel = "Notificaciones de correo nuevo"
     settingsNotificationsToggleSubtext = "Mostrar una notificación cuando llegue correo nuevo a la bandeja de entrada"
+    settingsNotificationsSoundToggleLabel = "Sonido de notificación"
+    settingsNotificationsSoundToggleSubtext = "Reproducir un sonido con las notificaciones de correo nuevo"
     settingsAppearanceLanguageSection = "Apariencia e idioma"
     settingsAppearanceLanguageSectionSubtitle = "Tema e idioma de la app"
     settingsPrivacySection = "Privacidad"
@@ -1116,6 +1126,8 @@ val FrStrings = Strings().apply {
     settingsNotificationsSectionSubtitle = "Activer ou désactiver les notifications de nouveaux messages"
     settingsNotificationsToggleLabel = "Notifications de nouveaux messages"
     settingsNotificationsToggleSubtext = "Afficher une notification à l'arrivée d'un nouveau message dans la boîte de réception"
+    settingsNotificationsSoundToggleLabel = "Son de notification"
+    settingsNotificationsSoundToggleSubtext = "Jouer un son avec les notifications de nouveaux messages"
     settingsAppearanceLanguageSection = "Apparence et langue"
     settingsAppearanceLanguageSectionSubtitle = "Thème et langue de l'application"
     settingsPrivacySection = "Confidentialité"

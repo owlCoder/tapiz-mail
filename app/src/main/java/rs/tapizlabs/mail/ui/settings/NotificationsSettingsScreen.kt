@@ -34,11 +34,13 @@ import rs.tapizlabs.mail.ui.i18n.LocalStrings
 import rs.tapizlabs.mail.ui.theme.AppColors
 
 /**
- * "Notifications" settings group — a single on/off toggle for new-mail notifications, gating
- * [rs.tapizlabs.mail.sync.NewMailNotifier] (see its `prefsStore.notificationsEnabledPref` check).
- * First `Switch` in this codebase — every other Settings row so far is a tap-to-open-picker
- * pattern ([rs.tapizlabs.mail.ui.components.SettingsNavRow]/`MailPickerSheet`), but a binary
- * on/off reads better as a direct toggle than a picker sheet with two options.
+ * "Notifications" settings group — an on/off toggle for new-mail notifications plus a
+ * secondary sound toggle (disabled unless notifications are on; defaults to off — see
+ * [rs.tapizlabs.mail.core.local.PrefsStore.notificationSoundEnabledPref]), both gating
+ * [rs.tapizlabs.mail.sync.NewMailNotifier]. First `Switch`es in this codebase — every other
+ * Settings row so far is a tap-to-open-picker pattern
+ * ([rs.tapizlabs.mail.ui.components.SettingsNavRow]/`MailPickerSheet`), but binary on/off reads
+ * better as a direct toggle than a picker sheet with two options.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,6 +111,40 @@ fun NotificationsSettingsScreen(
                             // user having to dig into system app-info settings themselves.
                             if (enabled) onRequestSystemPermission()
                         },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = colors.onPrimary,
+                            checkedTrackColor = colors.primary,
+                            checkedBorderColor = Color.Transparent,
+                        ),
+                    )
+                }
+            }
+
+            MailCard(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = strings.settingsNotificationsSoundToggleLabel,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = strings.settingsNotificationsSoundToggleSubtext,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.textMuted,
+                        )
+                    }
+                    Switch(
+                        checked = state.notificationSoundEnabled,
+                        onCheckedChange = { enabled -> viewModel.setNotificationSoundEnabled(enabled) },
+                        enabled = state.notificationsEnabled,
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = colors.onPrimary,
                             checkedTrackColor = colors.primary,

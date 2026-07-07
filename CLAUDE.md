@@ -66,8 +66,18 @@ unset ANDROID_HOME && ./gradlew :app:installDebug
 
 `local.properties` mora imati forward slashes i tačnu aktivnu `sdk.dir` liniju za trenutnog OS korisnika (Danijel vs owl/Claude Code) — pogrešan korisnik daje `AccessDeniedException` na SDK jar fajlovima. Ako se SDK path promeni dok je Gradle daemon živ, uraditi `./gradlew --stop` pre ponovnog build-a (stari path ostaje keširan u daemonu).
 
+**Pre svakog `bundleRelease` koji ide na Play Store, obavezno testirati sam release build, ne samo debug:**
+
+```bash
+unset ANDROID_HOME && ./gradlew :app:assembleRelease --console=plain -q
+unset ANDROID_HOME && ./gradlew :app:installRelease
+```
+
+Razlog: release build prolazi kroz R8 (`isMinifyEnabled = true`), debug ne prolazi — R8 briše/preimenuje sve što ne vidi kao direktno pozvano iz koda (reflection, `Class.forName`, `ServiceLoader`, provider registri poput JavaMaila), pa nešto može raditi savršeno u debug-u i pucati samo u release-u (npr. bag iz 2026-07-07: `com.sun.mail`/`javax.mail` registruje IMAP/SMTP provider klase isključivo preko reflection-a; bez `-keep` pravila u `proguard-rules.pro` R8 ih je obrisao/obfuskovao i svaki custom-nalog connect je pucao sa `NoSuchProviderException` čije je obfuskovano ime klase u poruci izgledalo kao besmisleno jedno slovo — trag da je R8 umešan). Instaliraj `installRelease` na uređaj/emulator i ručno prođi kroz add-account flow (bar jedan IMAP + jedan SMTP test-connection) pre nego što se AAB uploaduje.
+
+Ako neka nova biblioteka koristi reflection/plugin-style lookup, odmah joj dodati `-keep`/`-dontwarn` pravila u `proguard-rules.pro` — ne čekati da release build first-hand otkrije problem.
+
 ## Nedovršeno / sledeći koraci
 
 - Nema `LogoMark variant="mail"` u `@tapizlabs/ui` još — envelope glif postoji samo kao Android drawable (`ic_launcher_foreground.xml`/`splash_logo.xml`), dodati u design system kad/ako Tapiz Mail dobije web prisustvo ili kad se `@tapizlabs/ui` ažurira za sve 7 proizvoda.
 - Automatska kategorizacija (`CategoryMatcher`) je pravilo-bazirana (sender/subject/body contains/equals/starts-with), evaluira se u `SyncRepository` tokom sync-a — nema learning/ML komponentu, po dizajnu.
-- Release keystore (`tapiz-mail` alias) još nije kreiran u `android-release-keys/` — potrebno pre prvog `bundleRelease`.
