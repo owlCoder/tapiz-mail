@@ -3,7 +3,8 @@
 > Native Android email klijent, potpuno samostalan (bez Tapiz backend servisa) — direktna
 > IMAP/SMTP konekcija sa telefona. Čitaj `CLAUDE.md` pre rada. Kotlin + Jetpack Compose
 > (Material3), Hilt, Room, WorkManager, JavaMail (`com.sun.mail:android-mail`, `javax.mail.*`
-> namespace). Package `rs.tapizlabs.mail`.
+> namespace). Package `rs.tapizlabs.mail`, `applicationId rs.tapizlabs.mail`, minSdk 26 /
+> targetSdk 35, keystore alias `tapiz-mail`.
 
 ## Struktura
 
@@ -20,7 +21,7 @@ app/src/main/java/rs/tapizlabs/mail/
 │   ├── entity/             — Account, Folder, Message, Attachment, Category, CategoryRule,
 │   │                         SwipeActionConfig + CategoryMatcher.kt (pravilo-bazirani engine)
 │   ├── dao/                — Account/Attachment/Category/CategoryRule/Folder/Message/SwipeActionConfig DAO
-│   └── converters/         — enum TypeConverters
+│   └── converters/         — Converters.kt (enum TypeConverters)
 ├── data/repository/
 │   ├── MailRepository.kt       — read-facade za Inbox/Detail/Compose/Search (poruke)
 │   ├── AccountRepository.kt     — account CRUD + testConnection + swipe/category config (writes)
@@ -39,20 +40,60 @@ app/src/main/java/rs/tapizlabs/mail/
 │   └── NewMailNotifier.kt  — notifikacije za novu poštu
 ├── di/                     — Hilt: DatabaseModule, RepositoryModule, SyncModule
 └── ui/
-    ├── theme/              — TapizColors/AppColors, MailTheme, ThemePref, ThemeViewModel, Type
-    ├── i18n/               — Strings (sr/en/de/es/fr), LocalStrings, LanguageViewModel
-    ├── navigation/         — Routes, RootNavigation (NavHost), RootViewModel (no-accounts→Onboarding), MailBottomBar (4 taba)
+    ├── theme/              — TapizColors/AppColors, MailTheme (Theme.kt), ThemePref, ThemeViewModel, Type
+    ├── i18n/               — Strings.kt (sr/en/de/es/fr), LocalStrings, LanguageViewModel
+    ├── model/              — MailUiModels.kt — UI-facing view models (MessageListItemUi, CategoryChipUi, ...),
+    │                         deliberately decoupled from Room entities
+    ├── navigation/         — Routes, RootNavigation (NavHost), RootViewModel (no-accounts→Onboarding)
     ├── onboarding/         — OnboardingScreen, LanguagePickerScreen, NotificationPermissionScreen
     ├── account/            — ChooseProviderScreen (Gmail/Outlook/Custom), AddAccountScreen + AddAccountViewModel (manual IMAP/SMTP + test-connection)
     ├── inbox/              — InboxScreen + InboxViewModel (account switcher, kategorija chips, swipe, pull-to-refresh; hostuje Search overlay)
     ├── detail/             — MailDetailScreen + MailDetailViewModel (WebView JS-disabled za HTML body, attachment download)
-    ├── compose/            — ComposeScreen + ComposeViewModel (to/cc/bcc, SAF attachment picker, reply/forward)
-    ├── search/             — SearchScreen (floating overlay) + SearchViewModel (debounced Room pretraga + filteri)
-    ├── settings/           — SettingsScreen, MailSettingsScreen, AppearanceSettingsScreen, AboutScreen, PrivacyScreen, CategoryEditorSheet, SettingsViewModel
+    ├── compose/            — ComposeScreen + ComposeViewModel (to/cc/bcc, SAF attachment picker, reply/forward/draft pre-fill)
+    ├── search/             — SearchScreen (floating overlay, NIJE NavHost ruta) + SearchViewModel (debounced Room pretraga + filteri)
+    ├── drafts/             — prazan folder, leftover — nema ekrana; draftovi se otvaraju kroz Compose ruta (mode="draft")
+    ├── settings/           — SettingsScreen, MailSettingsScreen, NotificationsSettingsScreen, AppearanceSettingsScreen,
+    │                         AboutScreen, PrivacyScreen, CategoryEditorSheet, SettingsViewModel
     └── components/         — MailSheet (bottom-sheet overlay), MailButtons (flat+signal-edge), MailTextField/MailDropdown/MailCard/MailConfirmDialog,
                               MailSectionHeader, MessageListItem, SwipeableMessageRow, CategoryChipsRow, MailPickerSheet, SegmentedPickerCard,
                               ProviderIcons, Skeleton, MailLoadingSpinner, SettingsNavRow
 ```
+
+**`ui/drafts/` je prazan folder** (nijedan fajl unutra) — leftover od ranije strukture, ne
+predstavlja pravi feature. Draft poruke se otvaraju kroz `ui/compose/ComposeScreen` sa
+`mode="draft"` (vidi `Routes.compose`), ne kroz posebnu rutu/ekran.
+
+## Navigacija (RootNavigation.kt + Routes.kt)
+
+**Nema bottom nav bar-a.** Full-bleed Inbox je start destination (kad nalog već postoji);
+Compose/Settings su push-navigacija (icon dugmad na Inbox top baru → nova ruta na NavHost
+back stack-u, back arrow za povratak), ne tabovi. Search **nije NavHost ruta** — to je
+full-screen overlay koji živi *unutar* `InboxScreen`-a (Gmail-style), otvara/zatvara se
+lokalnim state-om, ne navigacijom.
+
+Rute definisane u `Routes.kt`:
+
+| Ruta | Ekran | Napomena |
+|---|---|---|
+| `language_picker` | `LanguagePickerScreen` | prvi ekran ako nema naloga |
+| `onboarding` | `OnboardingScreen` | "Get Started" |
+| `add_account?firstRun={firstRun}` | `ChooseProviderScreen` | Gmail/Outlook/Custom |
+| `add_account/details/{provider}?firstRun={firstRun}` | `AddAccountScreen` | manual IMAP/SMTP + test-connection |
+| `add_account/edit/{accountId}` | `AddAccountScreen` (edit mode) | iz Settings |
+| `notification_permission` | `NotificationPermissionScreen` | samo posle first-run save-a |
+| `inbox` | `InboxScreen` | start destination kad nalog postoji; hostuje Search overlay |
+| `compose?mode={mode}&messageId={messageId}` | `ComposeScreen` | mode = new / reply / forward / draft |
+| `settings` | `SettingsScreen` | |
+| `settings/mail` | `MailSettingsScreen` | |
+| `settings/notifications` | `NotificationsSettingsScreen` | |
+| `settings/appearance` | `AppearanceSettingsScreen` | |
+| `settings/about` | `AboutScreen` | |
+| `settings/privacy` | `PrivacyScreen` | |
+| `mail/{messageId}` | `MailDetailScreen` | |
+
+Start destination zavisi od `RootViewModel.startState`: `NoAccounts` → `LANGUAGE_PICKER`,
+inače → `INBOX` (izračunato jednom preko `remember`, da se izbegne NavHost resetovanje grafa
+usred first-run flowa — vidi doc-komentar u `RootNavigation.kt`).
 
 ## Gde da počneš
 
@@ -65,10 +106,13 @@ app/src/main/java/rs/tapizlabs/mail/
 | Sync (background/IDLE) | `sync/SyncRepository.kt` (deljeni put) + `MailSyncWorker.kt` / `IdleSyncService.kt` |
 | Kategorije (auto-tagging) | `data/local/entity/CategoryMatcher.kt` (pravilo-bazirano, eval u `SyncRepository`) |
 | Promeni boje/temu | `ui/theme/TapizColors.kt` (`categoryTints` = cycled-index paleta) |
-| Promeni navigaciju | `ui/navigation/RootNavigation.kt` + `Routes.kt` (bottom nav = tačno 4 taba) |
+| Promeni navigaciju | `ui/navigation/RootNavigation.kt` + `Routes.kt` — nema bottom nav bar-a, ne dodavati bez jake IA opravdanosti |
+| Draft poruke | `ui/compose/ComposeScreen.kt` sa `mode="draft"` — `ui/drafts/` je prazan leftover, ne feature |
+| Search (in-Inbox overlay) | `ui/search/SearchScreen.kt` + `SearchViewModel.kt` — hostovan iz `InboxScreen`, nije NavHost ruta |
 | Sheet/overlay | `ui/components/MailSheet.kt` (bottom) / `ui/search/SearchScreen.kt` (top floating) — ne ad-hoc `ModalBottomSheet` |
 | Kredencijali (lozinke) | `security/CredentialStore.kt` (EncryptedSharedPreferences, nikad Room/plaintext) |
 | Lokalizacija (5 jezika) | `ui/i18n/Strings.kt` — popuni svih 5 (sr/en/de/es/fr) pri dodavanju polja |
+| UI-facing modeli za listu/detalj | `ui/model/MailUiModels.kt` — namerno odvojeno od Room entiteta (`data/local/entity`) |
 
 ## Build
 

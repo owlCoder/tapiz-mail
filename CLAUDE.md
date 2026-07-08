@@ -18,7 +18,7 @@ data/repository/    MailRepository (read-facade za UI), AccountRepository (accou
                      facade za ViewModele)
 security/           CredentialStore — EncryptedSharedPreferences (Keystore-backed), per-account
                      IMAP/SMTP lozinke, nikad u Room-u niti u plaintext-u
-mail/                MailSession (jakarta/javax.mail Session builder po ConnectionSecurity),
+mail/                MailSession (javax.mail Session builder po ConnectionSecurity),
                      ImapClient (connect/testConnection/listFolders/fetchNewMessages/idle/
                      downloadAttachment), SmtpClient (MIME multipart send sa attachmentima),
                      MimePartWalker (MIME-tree ekstrakcija teksta/attachmenata)
@@ -37,16 +37,19 @@ ui/account/          AddAccountScreen — provider chooser (Gmail/Outlook prepop
 ui/inbox/            Inbox tab — account switcher, kategorija chips, swipe akcije, pull-to-refresh
 ui/detail/           Mail Detail — WebView (JS disabled) za HTML body, attachment download/open/save
 ui/compose/          Compose — to/cc/bcc, attachment picker (SAF), reply/forward pre-fill
-ui/search/           Search tab — debounced lokalna Room pretraga + filteri
+ui/search/           Search — debounced lokalna Room pretraga + filteri, prikazan kao full-screen
+                     overlay unutar InboxScreen-a (Gmail-style), nije NavHost ruta
 ui/settings/         Accounts/sync-interval/swipe-mapping/categories-rules/theme
 ui/navigation/       Routes, RootNavigation (NavHost), RootViewModel (no-accounts→Onboarding
-                     routing), MailBottomBar (Inbox/Search/Compose/Settings — 4 taba)
+                     routing). Nema bottom nav bar-a — full-bleed Inbox je start destination;
+                     Compose/Drafts/Settings su push destinacije (icon dugmad na Inbox top baru,
+                     back arrow), ne tabovi
 ```
 
 ## Pravila
 
 - Route → ViewModel → Repository → Room DAO / ImapClient / SmtpClient. Ekrani ne zovu DAO ili mail/ klase direktno.
-- Bottom nav = tačno 4 destinacije (Inbox/Search/Compose/Settings) — ne dodavati nove tabove bez jake IA opravdanosti (videti `DESIGN-GUIDELINES.md` u root-u workspace-a).
+- Nema bottom nav bar-a — Inbox je full-bleed start destination bez tab bara; Compose/Drafts/Settings su push-navigacija (icon dugmad na Inbox top baru + back arrow), Search je in-screen overlay unutar Inbox-a (ne NavHost ruta). Ne dodavati novi bottom tab bar bez jake IA opravdanosti (videti `DESIGN-GUIDELINES.md` u root-u workspace-a).
 - `AppColors.*` (iz `ui/theme/TapizColors.kt`) za sve boje — bez hardkodovanih hex vrednosti u ekranima. `categoryTints` je cycled-index paleta za kategorije, ne semantička kao Boards-ov priority coloring.
 - Dugmad: flat-at-rest, signal-colored bottom+right edge na press (`MailButtons.kt`) — ne all-around shadow, ne translateY lift.
 - Sheets/dialozi idu kroz `MailSheet`/`MailConfirmDialog` (shared overlay primitivi), ne ad-hoc `ModalBottomSheet`/`AlertDialog` pozive.
