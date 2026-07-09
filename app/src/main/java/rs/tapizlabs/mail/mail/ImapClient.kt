@@ -70,6 +70,24 @@ class ImapClient @Inject constructor(
             }
         }
 
+    /** Same handshake as [testConnection], but also reports whether the server advertises
+     * the IMAP IDLE capability — used to decide [AccountEntity.supportsIdle] at save time
+     * instead of hardcoding it based on provider. Custom/university IMAP servers (e.g. UNS
+     * webmail) are not Gmail/Outlook but many still support IDLE; probing beats assuming. */
+    suspend fun testConnectionWithIdleProbe(account: AccountEntity, password: String): Result<Boolean> =
+        withContext(Dispatchers.IO) {
+            try {
+                val store = connect(account, password)
+                val supportsIdle = runCatching { store.hasCapability("IDLE") }.getOrDefault(false)
+                store.close()
+                Result.success(supportsIdle)
+            } catch (e: MailError) {
+                Result.failure(e)
+            } catch (e: Exception) {
+                Result.failure(MailError.Unknown(e))
+            }
+        }
+
     fun listFolders(store: IMAPStore): List<FolderInfo> {
         return try {
             store.defaultFolder.list("*")

@@ -60,6 +60,7 @@ data class AddAccountUiState(
     val syncIntervalMinutes: Int = 15,
     val connectionTestState: ConnectionTestState = ConnectionTestState.IDLE,
     val connectionError: String? = null,
+    val probedSupportsIdle: Boolean = false,
     val saving: Boolean = false,
     val saveError: String? = null,
 ) {
@@ -113,6 +114,7 @@ class AddAccountViewModel @Inject constructor(
                         // Editing an existing, presumably-working account doesn't require
                         // re-testing before Save is allowed.
                         connectionTestState = ConnectionTestState.SUCCESS,
+                        probedSupportsIdle = account.supportsIdle,
                     )
                 }
             }
@@ -189,10 +191,12 @@ class AddAccountViewModel @Inject constructor(
 
         viewModelScope.launch {
             _state.update { it.copy(connectionTestState = ConnectionTestState.TESTING, connectionError = null) }
-            val result = accountRepository.testConnection(probeAccount, current.password)
+            val result = accountRepository.testConnectionWithIdleProbe(probeAccount, current.password)
             result.fold(
-                onSuccess = {
-                    _state.update { it.copy(connectionTestState = ConnectionTestState.SUCCESS) }
+                onSuccess = { supportsIdle ->
+                    _state.update {
+                        it.copy(connectionTestState = ConnectionTestState.SUCCESS, probedSupportsIdle = supportsIdle)
+                    }
                 },
                 onFailure = { error ->
                     _state.update {
@@ -225,7 +229,11 @@ class AddAccountViewModel @Inject constructor(
                 smtpSecurity = current.smtpSecurity,
                 username = current.username,
                 syncIntervalMinutes = current.syncIntervalMinutes,
-                supportsIdle = existing?.supportsIdle ?: false,
+                // Re-probed on every successful test (including edit-mode re-saves without a
+                // fresh test, where probedSupportsIdle was seeded from the existing account in
+                // init) rather than trusting a stale existing?.supportsIdle across host/port
+                // changes.
+                supportsIdle = current.probedSupportsIdle,
                 isActive = existing?.isActive ?: true,
                 sortOrder = existing?.sortOrder ?: 0,
                 createdAt = existing?.createdAt ?: System.currentTimeMillis(),

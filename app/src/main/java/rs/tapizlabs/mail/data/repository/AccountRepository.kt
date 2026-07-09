@@ -29,6 +29,7 @@ interface AccountRepository {
     fun observeAccounts(): Flow<List<AccountEntity>>
     suspend fun getAccountOnce(accountId: String): AccountEntity?
     suspend fun testConnection(account: AccountEntity, imapPassword: String): Result<Unit>
+    suspend fun testConnectionWithIdleProbe(account: AccountEntity, imapPassword: String): Result<Boolean>
     suspend fun saveAccount(account: AccountEntity, imapPassword: String, smtpPassword: String)
     suspend fun deleteAccount(account: AccountEntity)
 
@@ -60,6 +61,9 @@ class DefaultAccountRepository @Inject constructor(
 
     override suspend fun testConnection(account: AccountEntity, imapPassword: String): Result<Unit> =
         imapClient.testConnection(account, imapPassword)
+
+    override suspend fun testConnectionWithIdleProbe(account: AccountEntity, imapPassword: String): Result<Boolean> =
+        imapClient.testConnectionWithIdleProbe(account, imapPassword)
 
     override suspend fun saveAccount(account: AccountEntity, imapPassword: String, smtpPassword: String) {
         accountDao.upsert(account)

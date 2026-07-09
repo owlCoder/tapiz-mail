@@ -36,8 +36,10 @@ import rs.tapizlabs.mail.security.CredentialStore
 
 /**
  * Foreground service holding IMAP IDLE connections open for every account with
- * `supportsIdle = true`, so genuinely push-capable providers (Gmail, Outlook — not the UNS
- * webmail) get near-instant new-mail notifications without polling. This is the ONLY place
+ * `supportsIdle = true` — set at Add-Account time from an actual IDLE capability probe
+ * (see `ImapClient.testConnectionWithIdleProbe`), not assumed from the provider, so any
+ * server that advertises IDLE (including some university/custom IMAP setups) gets
+ * near-instant new-mail notifications without polling. This is the ONLY place
  * in the app that keeps a long-lived socket open; everything else (see [MailSyncWorker]/
  * [SyncScheduler]) is short, connect-fetch-disconnect.
  *
