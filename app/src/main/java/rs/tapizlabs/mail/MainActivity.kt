@@ -16,15 +16,24 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import rs.tapizlabs.mail.data.local.dao.AccountDao
 import rs.tapizlabs.mail.sync.IdleSyncService
 import rs.tapizlabs.mail.sync.NewMailNotifier
+import rs.tapizlabs.mail.sync.SyncScheduler
 import rs.tapizlabs.mail.ui.navigation.RootNavigation
 import rs.tapizlabs.mail.ui.theme.MailTheme
 import rs.tapizlabs.mail.ui.theme.ThemeViewModel
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject lateinit var accountDao: AccountDao
+    @Inject lateinit var syncScheduler: SyncScheduler
 
     private var pendingMessageId by mutableStateOf<String?>(null)
 
@@ -41,6 +50,18 @@ class MainActivity : ComponentActivity() {
         // backgrounds (see IdleSyncService), so this is safe to call unconditionally here
         // rather than threading an account-aware check through the UI layer.
         ContextCompat.startForegroundService(this, Intent(this, IdleSyncService::class.java))
+        // Defensively re-arm every account's periodic WorkManager sync on every app launch.
+        // scheduleFor() is otherwise only called from Add-Account/Settings, so if the OS ever
+        // drops the enqueued periodic work (Force Stop, battery-optimization "clear background
+        // data", app data cleared and restored, WorkManager DB loss) nothing else brings it
+        // back — the user is stuck with only the foreground IDLE service, which itself stops
+        // ~3 minutes after backgrounding, i.e. exactly "sync only happens when I open the app".
+        // enqueueUniquePeriodicWork's UPDATE policy makes this a safe no-op when work is already
+        // correctly scheduled.
+        lifecycleScope.launch {
+            val accounts = accountDao.getActiveAccounts().first()
+            syncScheduler.rescheduleAll(accounts)
+        }
         pendingMessageId = intent?.getStringExtra(NewMailNotifier.EXTRA_MESSAGE_ID)
         setContent {
             val themeViewModel: ThemeViewModel = hiltViewModel()
