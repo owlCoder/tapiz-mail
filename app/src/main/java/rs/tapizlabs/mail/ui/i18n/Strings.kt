@@ -226,6 +226,8 @@ class Strings internal constructor() {
     lateinit var settingsNotificationsToggleSubtext: String
     lateinit var settingsNotificationsSoundToggleLabel: String
     lateinit var settingsNotificationsSoundToggleSubtext: String
+    lateinit var settingsBatteryLabel: String
+    lateinit var settingsBatterySubtext: String
     lateinit var settingsAppearanceLanguageSection: String
     lateinit var settingsAppearanceLanguageSectionSubtitle: String
     lateinit var settingsPrivacySection: String
@@ -416,6 +418,8 @@ val SrStrings = Strings().apply {
     settingsNotificationsToggleSubtext = "Prikaži obaveštenje kada stigne nova poruka u Inbox"
     settingsNotificationsSoundToggleLabel = "Zvuk obaveštenja"
     settingsNotificationsSoundToggleSubtext = "Pusti zvuk uz obaveštenje o novoj pošti"
+    settingsBatteryLabel = "Pošta ne stiže u pozadini?"
+    settingsBatterySubtext = "Dozvoli aplikaciji rad u pozadini (isključi optimizaciju baterije)"
     settingsAppearanceLanguageSection = "Izgled i jezik"
     settingsAppearanceLanguageSectionSubtitle = "Tema i jezik aplikacije"
     settingsPrivacySection = "Privatnost"
@@ -594,6 +598,8 @@ val EnStrings = Strings().apply {
     settingsNotificationsToggleSubtext = "Show a notification when new mail arrives in Inbox"
     settingsNotificationsSoundToggleLabel = "Notification sound"
     settingsNotificationsSoundToggleSubtext = "Play a sound with new-mail notifications"
+    settingsBatteryLabel = "Mail not arriving in the background?"
+    settingsBatterySubtext = "Allow the app to run in the background (disable battery optimization)"
     settingsAppearanceLanguageSection = "Appearance & language"
     settingsAppearanceLanguageSectionSubtitle = "Theme and app language"
     settingsPrivacySection = "Privacy"
@@ -772,6 +778,8 @@ val DeStrings = Strings().apply {
     settingsNotificationsToggleSubtext = "Benachrichtigung anzeigen, wenn neue Post im Posteingang eintrifft"
     settingsNotificationsSoundToggleLabel = "Benachrichtigungston"
     settingsNotificationsSoundToggleSubtext = "Bei neuen E-Mail-Benachrichtigungen einen Ton abspielen"
+    settingsBatteryLabel = "Kommen E-Mails im Hintergrund nicht an?"
+    settingsBatterySubtext = "Erlaube der App, im Hintergrund zu laufen (Akku-Optimierung deaktivieren)"
     settingsAppearanceLanguageSection = "Erscheinungsbild & Sprache"
     settingsAppearanceLanguageSectionSubtitle = "Design und Sprache der App"
     settingsPrivacySection = "Datenschutz"
@@ -950,6 +958,8 @@ val EsStrings = Strings().apply {
     settingsNotificationsToggleSubtext = "Mostrar una notificación cuando llegue correo nuevo a la bandeja de entrada"
     settingsNotificationsSoundToggleLabel = "Sonido de notificación"
     settingsNotificationsSoundToggleSubtext = "Reproducir un sonido con las notificaciones de correo nuevo"
+    settingsBatteryLabel = "¿No llegan los correos en segundo plano?"
+    settingsBatterySubtext = "Permite que la app se ejecute en segundo plano (desactiva la optimización de batería)"
     settingsAppearanceLanguageSection = "Apariencia e idioma"
     settingsAppearanceLanguageSectionSubtitle = "Tema e idioma de la app"
     settingsPrivacySection = "Privacidad"
@@ -1128,6 +1138,8 @@ val FrStrings = Strings().apply {
     settingsNotificationsToggleSubtext = "Afficher une notification à l'arrivée d'un nouveau message dans la boîte de réception"
     settingsNotificationsSoundToggleLabel = "Son de notification"
     settingsNotificationsSoundToggleSubtext = "Jouer un son avec les notifications de nouveaux messages"
+    settingsBatteryLabel = "Les e-mails n'arrivent pas en arrière-plan ?"
+    settingsBatterySubtext = "Autoriser l'app à s'exécuter en arrière-plan (désactiver l'optimisation de la batterie)"
     settingsAppearanceLanguageSection = "Apparence et langue"
     settingsAppearanceLanguageSectionSubtitle = "Thème et langue de l'application"
     settingsPrivacySection = "Confidentialité"

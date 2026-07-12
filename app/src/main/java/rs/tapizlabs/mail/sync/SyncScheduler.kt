@@ -26,6 +26,9 @@ import rs.tapizlabs.mail.data.local.entity.AccountEntity
 @Singleton
 class SyncScheduler @Inject constructor(
     private val workManager: WorkManager,
+    // Second, OEM-resilient trigger driven in lockstep with WorkManager so every
+    // existing scheduleFor/cancelFor/rescheduleAll caller gets both automatically.
+    private val alarmScheduler: MailAlarmScheduler,
 ) {
 
     /** Minimum interval WorkManager honors for periodic work; account intervals below this
@@ -55,10 +58,12 @@ class SyncScheduler @Inject constructor(
             ExistingPeriodicWorkPolicy.UPDATE,
             request,
         )
+        alarmScheduler.scheduleFor(account.id, account.syncIntervalMinutes)
     }
 
     fun cancelFor(accountId: String) {
         workManager.cancelUniqueWork(uniqueWorkName(accountId))
+        alarmScheduler.cancelFor(accountId)
     }
 
     fun rescheduleAll(accounts: List<AccountEntity>) {

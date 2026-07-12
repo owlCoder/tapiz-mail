@@ -8,6 +8,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Exact alarms: OEM-resilient sync trigger alongside WorkManager (MIUI/HyperOS throttle WM). -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:name=".MailApp"
@@ -37,6 +41,17 @@
             android:name=".sync.IdleSyncService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+
+        <!-- OEM-resilient exact-alarm sync trigger (runs alongside WorkManager) +
+             re-arms all account alarms on boot/update. -->
+        <receiver
+            android:name=".sync.MailSyncAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"
