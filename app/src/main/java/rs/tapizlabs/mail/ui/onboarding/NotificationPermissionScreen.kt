@@ -45,66 +45,60 @@ fun NotificationPermissionScreen(
     val colors = AppColors
     val strings = LocalStrings.current
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(colors.canvasTop),
+            .padding(horizontal = 24.dp)
+            .padding(top = 72.dp, bottom = 32.dp),
     ) {
-        Column(
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp)
-                .padding(top = 72.dp, bottom = 32.dp),
+                .size(64.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(colors.accentSoft),
+            contentAlignment = Alignment.Center,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(colors.accentSoft),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.NotificationsNone,
-                    contentDescription = null,
-                    tint = colors.primary,
-                    modifier = Modifier.size(30.dp),
-                )
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            Text(
-                text = strings.notifPermTitle,
-                style = MaterialTheme.typography.headlineSmall.copy(
-                    color = colors.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                ),
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            Text(
-                text = strings.notifPermSubtext,
-                style = MaterialTheme.typography.bodyMedium.copy(color = colors.textSecondary),
-            )
-
-            Spacer(Modifier.weight(1f))
-
-            MailPrimaryButton(
-                text = strings.notifPermAllow,
-                onClick = onAllow,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Spacer(Modifier.height(10.dp))
-
-            MailGhostButton(
-                text = strings.notifPermSkip,
-                onClick = onSkip,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding(),
+            Icon(
+                imageVector = Icons.Outlined.NotificationsNone,
+                contentDescription = null,
+                tint = colors.primary,
+                modifier = Modifier.size(30.dp),
             )
         }
+
+        Spacer(Modifier.height(24.dp))
+
+        Text(
+            text = strings.notifPermTitle,
+            style = MaterialTheme.typography.headlineSmall.copy(
+                color = colors.textPrimary,
+                fontWeight = FontWeight.Bold,
+            ),
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        Text(
+            text = strings.notifPermSubtext,
+            style = MaterialTheme.typography.bodyMedium.copy(color = colors.textSecondary),
+        )
+
+        Spacer(Modifier.weight(1f))
+
+        MailPrimaryButton(
+            text = strings.notifPermAllow,
+            onClick = onAllow,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        Spacer(Modifier.height(10.dp))
+
+        MailGhostButton(
+            text = strings.notifPermSkip,
+            onClick = onSkip,
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding(),
+        )
     }
 }

@@ -48,45 +48,39 @@ fun LanguagePickerScreen(
     val colors = AppColors
     val strings = LocalStrings.current
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(colors.canvasTop),
+            .padding(horizontal = 24.dp)
+            .padding(top = 72.dp, bottom = 32.dp),
     ) {
+        Text(
+            text = strings.languagePickerTitle,
+            style = MaterialTheme.typography.headlineSmall.copy(
+                color = colors.textPrimary,
+                fontWeight = FontWeight.Bold,
+            ),
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        Text(
+            text = strings.languagePickerSubtitle,
+            style = MaterialTheme.typography.bodyMedium.copy(color = colors.textSecondary),
+        )
+
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp)
-                .padding(top = 72.dp, bottom = 32.dp),
+                .fillMaxWidth()
+                .padding(top = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(
-                text = strings.languagePickerTitle,
-                style = MaterialTheme.typography.headlineSmall.copy(
-                    color = colors.textPrimary,
-                    fontWeight = FontWeight.Bold,
-                ),
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            Text(
-                text = strings.languagePickerSubtitle,
-                style = MaterialTheme.typography.bodyMedium.copy(color = colors.textSecondary),
-            )
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 28.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                AppLanguage.entries.forEach { language ->
-                    LanguageOptionRow(
-                        name = displayName(language, strings),
-                        isSelected = language == selected,
-                        onClick = { onLanguageChosen(language) },
-                    )
-                }
+            AppLanguage.entries.forEach { language ->
+                LanguageOptionRow(
+                    name = displayName(language, strings),
+                    isSelected = language == selected,
+                    onClick = { onLanguageChosen(language) },
+                )
             }
         }
     }

@@ -7,15 +7,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
@@ -25,6 +21,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import rs.tapizlabs.mail.ui.account.AddAccountScreen
 import rs.tapizlabs.mail.ui.account.ChooseProviderScreen
+import rs.tapizlabs.mail.ui.components.GradientBackground
 import rs.tapizlabs.mail.ui.compose.ComposeScreen
 import rs.tapizlabs.mail.ui.detail.MailDetailScreen
 import rs.tapizlabs.mail.ui.i18n.CurrentStrings
@@ -42,7 +39,6 @@ import rs.tapizlabs.mail.ui.settings.MailSettingsScreen
 import rs.tapizlabs.mail.ui.settings.NotificationsSettingsScreen
 import rs.tapizlabs.mail.ui.settings.PrivacyScreen
 import rs.tapizlabs.mail.ui.settings.SettingsScreen
-import rs.tapizlabs.mail.ui.theme.AppColors
 
 /**
  * Top-level NavHost, called with no args from `MainActivity` inside `MailTheme { }`.
@@ -101,16 +97,13 @@ fun RootNavigation(
     }
 
     CompositionLocalProvider(LocalStrings provides stringsFor(language), LocalAppLanguage provides language) {
-    // Solid theme-colored backdrop behind the whole NavHost — without this, the brief gap
-    // between two screens sliding past each other during a push/pop transition (each screen
-    // is its own Scaffold with its own containerColor, but nothing paints the space *around*
-    // them while they're both mid-animation) falls through to the Android Window's own
-    // background, which defaults to white and reads as a flash in dark mode.
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(AppColors.canvasTop),
-    ) {
+    // Ecosystem-shared backdrop (ported from tapiz-lms/apps/android's RootNavigation) behind
+    // the whole NavHost — every screen's own Scaffold uses `containerColor = Color.Transparent`
+    // so this canvas+glow shows through consistently, and it also covers the brief gap between
+    // two screens sliding past each other during a push/pop transition (nothing else paints the
+    // space *around* them while they're both mid-animation), which otherwise falls through to
+    // the Android Window's own background and reads as a flash in dark mode.
+    GradientBackground {
     NavHost(
         navController = navController,
         startDestination = startDestination,

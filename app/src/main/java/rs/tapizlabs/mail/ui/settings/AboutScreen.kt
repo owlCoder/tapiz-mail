@@ -62,7 +62,7 @@ fun AboutScreen(onBack: () -> Unit) {
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
-        containerColor = colors.canvasTop,
+        containerColor = Color.Transparent,
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -97,7 +97,7 @@ private fun IdentityCard() {
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            TapizMailLogo(size = 56.dp, tile = true)
+            TapizMailLogo(size = 56.dp, tile = false, mono = true, glyphColor = colors.textPrimary)
             Spacer(Modifier.height(14.dp))
             Text(
                 text = strings.settingsAppName,

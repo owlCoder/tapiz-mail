@@ -18,38 +18,34 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import rs.tapizlabs.mail.R
 import rs.tapizlabs.mail.ui.components.MailPrimaryButton
 import rs.tapizlabs.mail.ui.components.ProviderBadge
 import rs.tapizlabs.mail.ui.components.ProviderBrandColors
+import rs.tapizlabs.mail.ui.components.TapizMailLogo
 import rs.tapizlabs.mail.ui.i18n.LocalStrings
 import rs.tapizlabs.mail.ui.theme.AppColors
 
 /**
- * First-run "Add account" screen — matches
- * design_handoff_tapiz_mail_android/design-reference.html's "Add account" screen 1:1:
- * a full-bleed colored hero panel with the app mark, headline/subtext, two
- * OAuth-style provider rows (Gmail/Outlook), a manual-IMAP form block, and a bottom
- * "Connect account" CTA pinned to the screen bottom (not the scroll content) —
- * all on one screen, not split across steps.
+ * First-run "Add account" screen — now shares the ecosystem's [GradientBackground] canvas
+ * (ported from tapiz-lms/apps/android) instead of a Mail-only full-bleed colored hero panel,
+ * so Tapiz Mail's onboarding reads as one more Tapiz app rather than a standalone product: an
+ * 84dp icon chip on `accentSoft` (Ink & Ember's `StepIconChip` pattern), headline/subtext in
+ * `textPrimary`/`textSecondary`, two provider shortcut rows, a manual-IMAP preview block, and a
+ * bottom "Connect account" CTA pinned to the screen bottom (not the scroll content).
  *
- * The Gmail/Outlook rows here are visual-only shortcuts into the same manual flow
- * (this app has no OAuth backend — everything is direct IMAP/SMTP per CLAUDE.md),
- * so tapping either one pre-fills the known host/port and continues to
- * [rs.tapizlabs.mail.ui.account.AddAccountScreen] exactly like the existing
- * Choose-Provider step does.
+ * The Gmail/Outlook rows here are visual-only shortcuts into the same manual flow (this app has
+ * no OAuth backend — everything is direct IMAP/SMTP per CLAUDE.md), so tapping either one
+ * pre-fills the known host/port and continues to [rs.tapizlabs.mail.ui.account.AddAccountScreen]
+ * exactly like the existing Choose-Provider step does.
  */
 @Composable
 fun OnboardingScreen(
@@ -59,123 +55,98 @@ fun OnboardingScreen(
 ) {
     val colors = AppColors
     val strings = LocalStrings.current
-    // Reference: light mode hero = primary indigo panel; dark mode hero = the
-    // dedicated deep-violet `heroPanel` token (oklch(28% 0.05 265)), not the plain
-    // dark canvas. Hero text is white in both modes.
-    val heroBackground = if (colors.isDark) colors.heroPanel else colors.primary
-    // Reference CTA button: dark mode = primary-bg/onPrimary-text (a light-indigo
-    // button that pops against the deep-violet hero); light mode = white-bg/
-    // primary-text (a white button against the indigo hero). Not the same
-    // inversion in both modes, so pass explicit colors rather than one flag.
-    val ctaContainer = if (colors.isDark) colors.primary else Color.White
-    val ctaContent = if (colors.isDark) colors.onPrimary else colors.primary
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(heroBackground),
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Column(
+    Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 22.dp)
+                .padding(top = 24.dp),
+        ) {
+            Box(
                 modifier = Modifier
-                    .weight(1f)
-                    .statusBarsPadding()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 22.dp)
-                    .padding(top = 24.dp),
+                    .size(84.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(colors.accentSoft),
+                contentAlignment = Alignment.Center,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(colors.primaryBright),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.splash_logo),
-                        contentDescription = null,
-                        tint = if (colors.isDark) colors.onPrimary else Color.White,
-                        modifier = Modifier.size(52.dp),
-                    )
-                }
-
-                Spacer(Modifier.height(22.dp))
-
-                Text(
-                    text = strings.onboardingHeadline,
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                    ),
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                Text(
-                    text = strings.onboardingSubtext,
-                    style = MaterialTheme.typography.bodyMedium.copy(color = Color.White.copy(alpha = 0.8f)),
-                )
-
-                Spacer(Modifier.height(18.dp))
-
-                Column {
-                    OAuthProviderRow(
-                        label = strings.onboardingContinueWithGmail,
-                        letter = "G",
-                        badgeColor = ProviderBrandColors.Gmail,
-                        onClick = onGmail,
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    OAuthProviderRow(
-                        label = strings.onboardingContinueWithOutlook,
-                        letter = "O",
-                        badgeColor = ProviderBrandColors.Outlook,
-                        onClick = onOutlook,
-                    )
-                }
-
-                Spacer(Modifier.height(18.dp))
-
-                Text(
-                    text = strings.onboardingOrConnectManually,
-                    style = MaterialTheme.typography.bodySmall.copy(color = Color.White.copy(alpha = 0.6f)),
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center,
-                )
-
-                Spacer(Modifier.height(18.dp))
-
-                ManualFormPreview(imapHostLabel = strings.onboardingImapHost, usernameLabel = strings.onboardingUsername)
+                TapizMailLogo(size = 44.dp, tile = false, mono = true, glyphColor = colors.primary)
             }
 
-            MailPrimaryButton(
-                text = strings.onboardingGetStarted,
-                onClick = onGetStarted,
-                containerColorOverride = ctaContainer,
-                contentColorOverride = ctaContent,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 22.dp)
-                    .navigationBarsPadding()
-                    .padding(bottom = 20.dp, top = 12.dp),
+            Spacer(Modifier.height(22.dp))
+
+            Text(
+                text = strings.onboardingHeadline,
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                ),
             )
+
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                text = strings.onboardingSubtext,
+                style = MaterialTheme.typography.bodyMedium.copy(color = colors.textSecondary),
+            )
+
+            Spacer(Modifier.height(18.dp))
+
+            Column {
+                OAuthProviderRow(
+                    label = strings.onboardingContinueWithGmail,
+                    letter = "G",
+                    badgeColor = ProviderBrandColors.Gmail,
+                    onClick = onGmail,
+                )
+                Spacer(Modifier.height(10.dp))
+                OAuthProviderRow(
+                    label = strings.onboardingContinueWithOutlook,
+                    letter = "O",
+                    badgeColor = ProviderBrandColors.Outlook,
+                    onClick = onOutlook,
+                )
+            }
+
+            Spacer(Modifier.height(18.dp))
+
+            Text(
+                text = strings.onboardingOrConnectManually,
+                style = MaterialTheme.typography.bodySmall.copy(color = colors.textMuted),
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+            )
+
+            Spacer(Modifier.height(18.dp))
+
+            ManualFormPreview(imapHostLabel = strings.onboardingImapHost, usernameLabel = strings.onboardingUsername)
         }
+
+        MailPrimaryButton(
+            text = strings.onboardingGetStarted,
+            onClick = onGetStarted,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 22.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 20.dp, top = 12.dp),
+        )
     }
 }
 
-/** OAuth-style row (reference: 22x22 provider-brand icon + label, translucent
- * bordered pill on the colored hero panel). Not a real OAuth flow — this app has
- * no backend, so this shortcuts into the manual IMAP/SMTP form pre-filled with the
- * provider's known host/port. */
+/** OAuth-style row (provider-brand badge + label on a card surface). Not a real OAuth flow —
+ * this app has no backend, so this shortcuts into the manual IMAP/SMTP form pre-filled with
+ * the provider's known host/port. */
 @Composable
-private fun OAuthProviderRow(label: String, letter: String, badgeColor: Color, onClick: () -> Unit) {
+private fun OAuthProviderRow(label: String, letter: String, badgeColor: androidx.compose.ui.graphics.Color, onClick: () -> Unit) {
     val colors = AppColors
-    val bg = if (colors.isDark) Color.White.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.12f)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(bg)
+            .background(colors.cardSubtle)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -185,7 +156,7 @@ private fun OAuthProviderRow(label: String, letter: String, badgeColor: Color, o
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium.copy(
-                color = Color.White,
+                color = colors.textPrimary,
                 fontWeight = FontWeight.Medium,
             ),
         )
@@ -198,41 +169,39 @@ private fun OAuthProviderRow(label: String, letter: String, badgeColor: Color, o
 @Composable
 private fun ManualFormPreview(imapHostLabel: String, usernameLabel: String) {
     val colors = AppColors
-    val bg = if (colors.isDark) Color.White.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.08f)
-    val border = if (colors.isDark) Color.White.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.18f)
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(bg)
+            .background(colors.cardSubtle)
             .padding(horizontal = 16.dp, vertical = 14.dp),
     ) {
         Text(
             text = imapHostLabel,
-            style = MaterialTheme.typography.labelSmall.copy(color = Color.White.copy(alpha = 0.6f)),
+            style = MaterialTheme.typography.labelSmall.copy(color = colors.textMuted),
         )
         Spacer(Modifier.height(4.dp))
         Text(
             text = "webmail.uns.ac.rs",
-            style = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
+            style = MaterialTheme.typography.bodyMedium.copy(color = colors.textPrimary),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 8.dp),
         )
-        HorizontalDivider(color = border)
+        HorizontalDivider(color = colors.stroke)
         Spacer(Modifier.height(10.dp))
         Text(
             text = usernameLabel,
-            style = MaterialTheme.typography.labelSmall.copy(color = Color.White.copy(alpha = 0.6f)),
+            style = MaterialTheme.typography.labelSmall.copy(color = colors.textMuted),
         )
         Spacer(Modifier.height(4.dp))
         Text(
             text = "student@uns.ac.rs",
-            style = MaterialTheme.typography.bodyMedium.copy(color = Color.White),
+            style = MaterialTheme.typography.bodyMedium.copy(color = colors.textPrimary),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 8.dp),
         )
-        HorizontalDivider(color = border)
+        HorizontalDivider(color = colors.stroke)
     }
 }
