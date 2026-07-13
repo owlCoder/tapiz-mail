@@ -4,7 +4,6 @@
 
     <string name="idle_sync_channel_name">Sinhronizacija</string>
     <string name="idle_sync_notification_title">Tapiz Mail</string>
-    <string name="idle_sync_notification_text">Sinhronizacija aktivna</string>
 
     <string name="new_mail_channel_name">Novi mejlovi</string>
 </resources>

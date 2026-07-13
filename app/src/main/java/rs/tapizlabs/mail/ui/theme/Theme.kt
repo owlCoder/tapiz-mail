@@ -17,6 +17,7 @@ import androidx.core.view.WindowCompat
 @Composable
 fun MailTheme(
     themePref: ThemePref = ThemePref.System,
+    skin: MailSkin = MailSkin.Ocean,
     content: @Composable () -> Unit,
 ) {
     val isDark = when (themePref) {
@@ -25,8 +26,8 @@ fun MailTheme(
         ThemePref.Dark -> true
     }
 
-    val colors by remember(isDark) {
-        mutableStateOf(if (isDark) DarkColors else LightColors)
+    val colors by remember(isDark, skin) {
+        mutableStateOf(tapizColors(skin, isDark))
     }
 
     val materialColorScheme = if (isDark) {

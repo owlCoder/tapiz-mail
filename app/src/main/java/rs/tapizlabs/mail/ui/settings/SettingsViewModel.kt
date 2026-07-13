@@ -26,6 +26,7 @@ import rs.tapizlabs.mail.data.repository.AccountRepository
 import rs.tapizlabs.mail.security.CredentialStore
 import rs.tapizlabs.mail.sync.SyncScheduler
 import rs.tapizlabs.mail.ui.i18n.AppLanguage
+import rs.tapizlabs.mail.ui.theme.MailSkin
 import rs.tapizlabs.mail.ui.theme.ThemePref
 
 data class SettingsUiState(
@@ -34,6 +35,7 @@ data class SettingsUiState(
     val selectedAccountId: String? = null,
     val swipeConfig: SwipeActionConfigEntity? = null,
     val themePref: ThemePref = ThemePref.System,
+    val skinPref: MailSkin = MailSkin.Ocean,
     val languagePref: AppLanguage = AppLanguage.SR,
     val notificationsEnabled: Boolean = true,
     val notificationSoundEnabled: Boolean = false,
@@ -67,13 +69,15 @@ class SettingsViewModel @Inject constructor(
             swipeFlow,
             prefsStore.notificationsEnabledPref,
             prefsStore.notificationSoundEnabledPref,
-        ) { swipeConfig, notificationsEnabled, notificationSoundEnabled ->
+            prefsStore.skinPref,
+        ) { swipeConfig, notificationsEnabled, notificationSoundEnabled, skinPref ->
             SettingsUiState(
                 accounts = accounts,
                 categories = categories,
                 selectedAccountId = resolvedSelectedId,
                 swipeConfig = swipeConfig,
                 themePref = themePref,
+                skinPref = skinPref,
                 languagePref = languagePref,
                 notificationsEnabled = notificationsEnabled,
                 notificationSoundEnabled = notificationSoundEnabled,
@@ -87,6 +91,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setTheme(pref: ThemePref) {
         viewModelScope.launch { prefsStore.setThemePref(pref) }
+    }
+
+    fun setSkin(skin: MailSkin) {
+        viewModelScope.launch { prefsStore.setSkinPref(skin) }
     }
 
     fun setLanguage(language: AppLanguage) {

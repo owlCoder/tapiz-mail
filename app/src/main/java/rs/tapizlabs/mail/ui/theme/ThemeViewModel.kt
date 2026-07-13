@@ -26,7 +26,17 @@ class ThemeViewModel @Inject constructor(
         initialValue = runBlocking { prefsStore.themeBlocking() },
     )
 
+    val skinPref: StateFlow<MailSkin> = prefsStore.skinPref.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = runBlocking { prefsStore.skinBlocking() },
+    )
+
     fun setTheme(pref: ThemePref) {
         viewModelScope.launch { prefsStore.setThemePref(pref) }
+    }
+
+    fun setSkin(skin: MailSkin) {
+        viewModelScope.launch { prefsStore.setSkinPref(skin) }
     }
 }

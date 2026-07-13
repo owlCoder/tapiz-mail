@@ -66,7 +66,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             val themeViewModel: ThemeViewModel = hiltViewModel()
             val themePref by themeViewModel.themePref.collectAsStateWithLifecycle()
-            MailTheme(themePref = themePref) {
+            val skinPref by themeViewModel.skinPref.collectAsStateWithLifecycle()
+            MailTheme(themePref = themePref, skin = skinPref) {
                 RootNavigation(
                     pendingMessageId = pendingMessageId,
                     onRequestNotificationPermission = ::requestNotificationPermissionIfNeeded,

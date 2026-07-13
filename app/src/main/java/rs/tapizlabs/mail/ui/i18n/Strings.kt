@@ -215,6 +215,16 @@ class Strings internal constructor() {
     lateinit var settingsThemeSystem: String
     lateinit var settingsThemeLight: String
     lateinit var settingsThemeDark: String
+    lateinit var settingsSkinSection: String
+    lateinit var settingsSkinSectionSubtitle: String
+    lateinit var skinDefault: String
+    lateinit var skinOcean: String
+    lateinit var skinForest: String
+    lateinit var skinRose: String
+    lateinit var skinGraphite: String
+    lateinit var skinSand: String
+    lateinit var skinCrimson: String
+    lateinit var skinAurora: String
     lateinit var settingsLanguageSection: String
     lateinit var settingsLanguageSectionSubtitle: String
     lateinit var settingsLanguage: String
@@ -407,6 +417,16 @@ val SrStrings = Strings().apply {
     settingsThemeSystem = "Auto"
     settingsThemeLight = "Svetla"
     settingsThemeDark = "Tamna"
+    settingsSkinSection = "Boja teme"
+    settingsSkinSectionSubtitle = "Izaberi paletu boja aplikacije"
+    skinDefault = "Podrazumevana"
+    skinOcean = "Okean"
+    skinForest = "Šuma"
+    skinRose = "Roze"
+    skinGraphite = "Grafit"
+    skinSand = "Pesak"
+    skinCrimson = "Rubin"
+    skinAurora = "Aurora"
     settingsLanguageSection = "Jezik"
     settingsLanguageSectionSubtitle = "Jezik korisničkog interfejsa aplikacije"
     settingsLanguage = "Jezik aplikacije"
@@ -587,6 +607,16 @@ val EnStrings = Strings().apply {
     settingsThemeSystem = "Auto"
     settingsThemeLight = "Light"
     settingsThemeDark = "Dark"
+    settingsSkinSection = "Color skin"
+    settingsSkinSectionSubtitle = "Choose the app's color palette"
+    skinDefault = "Default"
+    skinOcean = "Ocean"
+    skinForest = "Forest"
+    skinRose = "Rose"
+    skinGraphite = "Graphite"
+    skinSand = "Sand"
+    skinCrimson = "Crimson"
+    skinAurora = "Aurora"
     settingsLanguageSection = "Language"
     settingsLanguageSectionSubtitle = "The app's interface language"
     settingsLanguage = "App language"
@@ -767,6 +797,16 @@ val DeStrings = Strings().apply {
     settingsThemeSystem = "Auto"
     settingsThemeLight = "Hell"
     settingsThemeDark = "Dunkel"
+    settingsSkinSection = "Farbschema"
+    settingsSkinSectionSubtitle = "Farbpalette der App wählen"
+    skinDefault = "Standard"
+    skinOcean = "Ozean"
+    skinForest = "Wald"
+    skinRose = "Rosé"
+    skinGraphite = "Graphit"
+    skinSand = "Sand"
+    skinCrimson = "Karmesin"
+    skinAurora = "Aurora"
     settingsLanguageSection = "Sprache"
     settingsLanguageSectionSubtitle = "Die Sprache der App-Oberfläche"
     settingsLanguage = "App-Sprache"
@@ -947,6 +987,16 @@ val EsStrings = Strings().apply {
     settingsThemeSystem = "Auto"
     settingsThemeLight = "Claro"
     settingsThemeDark = "Oscuro"
+    settingsSkinSection = "Combinación de colores"
+    settingsSkinSectionSubtitle = "Elige la paleta de colores de la app"
+    skinDefault = "Predeterminado"
+    skinOcean = "Océano"
+    skinForest = "Bosque"
+    skinRose = "Rosa"
+    skinGraphite = "Grafito"
+    skinSand = "Arena"
+    skinCrimson = "Carmesí"
+    skinAurora = "Aurora"
     settingsLanguageSection = "Idioma"
     settingsLanguageSectionSubtitle = "El idioma de la interfaz de la app"
     settingsLanguage = "Idioma de la app"
@@ -1127,6 +1177,16 @@ val FrStrings = Strings().apply {
     settingsThemeSystem = "Auto"
     settingsThemeLight = "Clair"
     settingsThemeDark = "Sombre"
+    settingsSkinSection = "Palette de couleurs"
+    settingsSkinSectionSubtitle = "Choisir la palette de couleurs de l'application"
+    skinDefault = "Par défaut"
+    skinOcean = "Océan"
+    skinForest = "Forêt"
+    skinRose = "Rose"
+    skinGraphite = "Graphite"
+    skinSand = "Sable"
+    skinCrimson = "Cramoisi"
+    skinAurora = "Aurora"
     settingsLanguageSection = "Langue"
     settingsLanguageSectionSubtitle = "La langue de l'interface de l'application"
     settingsLanguage = "Langue de l'application"

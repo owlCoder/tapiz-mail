@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import rs.tapizlabs.mail.ui.i18n.AppLanguage
+import rs.tapizlabs.mail.ui.theme.MailSkin
 import rs.tapizlabs.mail.ui.theme.ThemePref
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -24,6 +25,7 @@ class PrefsStore @Inject constructor(@ApplicationContext private val ctx: Contex
 
     private val KEY_LANGUAGE = stringPreferencesKey("app_language")
     private val KEY_THEME = stringPreferencesKey("app_theme")
+    private val KEY_SKIN = stringPreferencesKey("app_skin")
     private val KEY_NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
     private val KEY_NOTIFICATION_SOUND_ENABLED = booleanPreferencesKey("notification_sound_enabled")
 
@@ -65,6 +67,20 @@ class PrefsStore @Inject constructor(@ApplicationContext private val ctx: Contex
     }
 
     suspend fun themeBlocking(): ThemePref = themePref.first()
+
+    /** Default skin for Tapiz Mail is [MailSkin.Ocean] (decided 2026-07-13), distinct from
+     * the ecosystem-wide [MailSkin.Default] "Ink & Ember" base. */
+    val skinPref: Flow<MailSkin> = ctx.prefsDataStore.data.map { prefs ->
+        MailSkin.entries.firstOrNull { it.name.equals(prefs[KEY_SKIN], ignoreCase = true) } ?: MailSkin.Ocean
+    }
+
+    suspend fun setSkinPref(skin: MailSkin) {
+        ctx.prefsDataStore.edit { prefs ->
+            prefs[KEY_SKIN] = skin.name.lowercase()
+        }
+    }
+
+    suspend fun skinBlocking(): MailSkin = skinPref.first()
 
     /** Defaults to `true` (opted in) — matches the existing behavior before this preference
      * existed, so upgrading users keep getting notified without an extra step. */

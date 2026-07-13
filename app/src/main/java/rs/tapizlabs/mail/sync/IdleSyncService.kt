@@ -154,7 +154,6 @@ class IdleSyncService : Service() {
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.idle_sync_notification_title))
-            .setContentText(getString(R.string.idle_sync_notification_text))
             .setSmallIcon(R.drawable.ic_notification)
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .setOngoing(true)
