@@ -3,16 +3,19 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Monochrome variant of the outline envelope mark (same geometry as
-         ic_launcher_foreground). Android composes monochrome icons as a single-color
-         mask, so the stroke outline is expressed as a filled ring (outer rounded rect
-         minus an inset rounded rect) rather than relying on stroke rendering. -->
-    <path android:fillColor="#FF000000"
-        android:fillType="evenOdd"
-        android:pathData="
-            M39,37 H69 A7,7 0 0 1 76,44 V63 A7,7 0 0 1 69,70 H39 A7,7 0 0 1 32,63 V44 A7,7 0 0 1 39,37 Z
-            M39,41.25 A2.75,2.75 0 0 0 36.25,44 V63 A2.75,2.75 0 0 0 39,65.75 H69 A2.75,2.75 0 0 0 71.75,63 V44 A2.75,2.75 0 0 0 69,41.25 Z" />
+    <!-- Monochrome Mail "M" glyph for themed icons (Android 13+) — system applies a single tint.
+         Same bar+accent geometry as ic_launcher_foreground, both strokes solid white, no halo needed. -->
     <path
-        android:fillColor="#FF000000"
-        android:pathData="M34.5,38.75 L54,53.75 L73.5,38.75 L73.5,43.25 L54,58.25 L34.5,43.25 Z" />
+        android:pathData="M30,54 L78,54"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="12"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M35.33,67.33 L35.33,40.67 L54,59.33 L72.67,40.67 L72.67,67.33"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="12"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
 </vector>

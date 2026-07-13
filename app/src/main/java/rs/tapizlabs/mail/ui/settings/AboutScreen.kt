@@ -10,13 +10,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -36,6 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import rs.tapizlabs.mail.BuildConfig
 import rs.tapizlabs.mail.ui.components.MailCard
+import rs.tapizlabs.mail.ui.components.TapizMailLogo
 import rs.tapizlabs.mail.ui.i18n.LocalStrings
 import rs.tapizlabs.mail.ui.theme.AppColors
 import java.time.Year
@@ -98,15 +97,7 @@ private fun IdentityCard() {
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(colors.primary),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Filled.MailOutline, contentDescription = null, tint = colors.onPrimary, modifier = Modifier.size(28.dp))
-            }
+            TapizMailLogo(size = 56.dp, tile = true)
             Spacer(Modifier.height(14.dp))
             Text(
                 text = strings.settingsAppName,

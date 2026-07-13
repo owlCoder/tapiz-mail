@@ -3,7 +3,8 @@
     <!-- Splash follows the system light/dark theme (values-night overrides):
          light = light canvas + primary glyph, dark = ink canvas + primary glyph. -->
     <color name="splash_background">#F5F9FE</color>
-    <color name="splash_glyph">#2249B7</color>
+    <color name="splash_glyph">#C9A227</color>
+    <color name="splash_ink">#221C30</color>
     <!-- windowBackground: shows through edge-to-edge insets and nav transitions
          before Compose draws — must match AppColors.canvasTop, not AppCompat's
          light default, or the app looks lighter than design-reference.html. -->

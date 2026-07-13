@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Dark splash: ink brand canvas + cyan glyph. -->
+    <!-- Dark splash: ink brand canvas + sand/terracotta "M" glyph. -->
     <color name="splash_background">#13161D</color>
-    <color name="splash_glyph">#5888FC</color>
+    <color name="splash_glyph">#C9A227</color>
+    <color name="splash_ink">#F5F9FE</color>
     <color name="window_background">#13161D</color>
 </resources>
