@@ -27,8 +27,8 @@ android {
         applicationId = "rs.tapizlabs.mail"
         minSdk = 26
         targetSdk = 35
-        versionCode = 12
-        versionName = "1.120726.1-a"
+        versionCode = 13
+        versionName = "1.170726-a"
     }
 
     signingConfigs {

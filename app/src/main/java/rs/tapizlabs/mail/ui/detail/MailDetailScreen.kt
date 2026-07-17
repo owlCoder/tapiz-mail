@@ -54,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
+import rs.tapizlabs.mail.ui.components.BackArrowButton
 import rs.tapizlabs.mail.ui.i18n.LocalStrings
 import rs.tapizlabs.mail.ui.i18n.Strings
 import rs.tapizlabs.mail.ui.theme.AppColors
@@ -164,7 +165,6 @@ fun MailDetailScreen(
 
 @Composable
 private fun DetailTopBar(onBack: () -> Unit) {
-    val colors = AppColors
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -172,13 +172,7 @@ private fun DetailTopBar(onBack: () -> Unit) {
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onBack) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                contentDescription = "Back",
-                tint = colors.textMuted,
-            )
-        }
+        BackArrowButton(onBack)
     }
 }
 

@@ -17,7 +17,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.AccountCircle
@@ -29,7 +28,6 @@ import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -48,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import rs.tapizlabs.mail.data.local.entity.AccountEntity
+import rs.tapizlabs.mail.ui.components.BackArrowButton
 import rs.tapizlabs.mail.ui.components.MailCard
 import rs.tapizlabs.mail.ui.components.MailConfirmDialog
 import rs.tapizlabs.mail.ui.components.MailSectionHeader
@@ -86,11 +85,7 @@ fun SettingsScreen(
         topBar = {
             TopAppBar(
                 title = { Text(strings.settingsTitle, color = colors.textPrimary) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = null, tint = colors.textPrimary)
-                    }
-                },
+                navigationIcon = { BackArrowButton(onBack, modifier = Modifier.padding(start = 8.dp)) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
