@@ -49,7 +49,7 @@ ui/navigation/       Routes, RootNavigation (NavHost), RootViewModel (no-account
 ## Pravila
 
 - Route → ViewModel → Repository → Room DAO / ImapClient / SmtpClient. Ekrani ne zovu DAO ili mail/ klase direktno.
-- Nema bottom nav bar-a — Inbox je full-bleed start destination bez tab bara; Compose/Drafts/Settings su push-navigacija (icon dugmad na Inbox top baru + back arrow), Search je in-screen overlay unutar Inbox-a (ne NavHost ruta). Ne dodavati novi bottom tab bar bez jake IA opravdanosti (videti `DESIGN-GUIDELINES.md` u root-u workspace-a).
+- Nema bottom nav bar-a — Inbox je full-bleed start destination bez tab bara; Compose/Drafts/Settings su push-navigacija (icon dugmad na Inbox top baru + back arrow), Search je in-screen overlay unutar Inbox-a (ne NavHost ruta). Ne dodavati novi bottom tab bar bez jake IA opravdanosti (videti `_local/reference/design-guidelines.md` u root-u workspace-a).
 - `AppColors.*` (iz `ui/theme/TapizColors.kt`) za sve boje — bez hardkodovanih hex vrednosti u ekranima. `categoryTints` je cycled-index paleta za kategorije, ne semantička kao Boards-ov priority coloring.
 - Dugmad: flat-at-rest, signal-colored bottom+right edge na press (`MailButtons.kt`) — ne all-around shadow, ne translateY lift.
 - Sheets/dialozi idu kroz `MailSheet`/`MailConfirmDialog` (shared overlay primitivi), ne ad-hoc `ModalBottomSheet`/`AlertDialog` pozive.
