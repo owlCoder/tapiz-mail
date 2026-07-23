@@ -21,12 +21,12 @@ val keystoreProperties = Properties().apply {
 
 android {
     namespace = "rs.tapizlabs.mail"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "rs.tapizlabs.mail"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 13
         versionName = "1.170726-a"
     }
