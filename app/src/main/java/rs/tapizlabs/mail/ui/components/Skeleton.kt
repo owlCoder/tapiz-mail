@@ -25,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 import rs.tapizlabs.mail.ui.theme.AppColors
@@ -70,8 +69,10 @@ fun SkeletonHost(content: @Composable () -> Unit) {
 @Composable
 fun Modifier.shimmer(shape: Shape = RoundedCornerShape(8.dp)): Modifier {
     val c = AppColors
-    val base = if (c.isDark) Color(0xFF1A2029) else Color(0xFFE3E9EC)
-    val highlight = if (c.isDark) Color(0xFF262E39) else Color(0xFFF1F5F7)
+    // Two adjacent surface shades, already theme/skin-reactive via AppColors —
+    // closest match to the previous hardcoded Ink & Ember shimmer tones.
+    val base = c.cardSubtle
+    val highlight = c.stroke
 
     val x = rememberSharedShimmerPhase()
     val brush = Brush.linearGradient(
