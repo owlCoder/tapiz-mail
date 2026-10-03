@@ -78,7 +78,9 @@ fun MailPrimaryButton(
     }
 }
 
-/** Ghost/secondary variant — outline at rest, same flat no-shadow treatment. */
+/** Ghost/secondary variant — outline at rest, same flat no-shadow treatment. [danger] tints
+ * it coral for destructive secondary actions (discard, remove), which must never share the
+ * primary color with constructive ones. */
 @Composable
 fun MailGhostButton(
     text: String,
@@ -87,8 +89,10 @@ fun MailGhostButton(
     icon: ImageVector? = null,
     enabled: Boolean = true,
     height: Dp = 44.dp,
+    danger: Boolean = false,
 ) {
     val colors = AppColors
+    val tint = if (danger) colors.coral else colors.primary
 
     OutlinedButton(
         onClick = onClick,
@@ -96,12 +100,12 @@ fun MailGhostButton(
         shape = RoundedCornerShape(12.dp),
         enabled = enabled,
         colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = colors.primary,
-            disabledContentColor = colors.primary.copy(alpha = 0.4f),
+            contentColor = tint,
+            disabledContentColor = tint.copy(alpha = 0.4f),
         ),
         border = BorderStroke(
             width = 1.dp,
-            color = if (enabled) colors.primary else colors.primary.copy(alpha = 0.4f),
+            color = if (enabled) tint else tint.copy(alpha = 0.4f),
         ),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
     ) {

@@ -34,13 +34,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import rs.tapizlabs.mail.ui.i18n.LocalAppLanguage
+import rs.tapizlabs.mail.ui.i18n.LocalStrings
 import rs.tapizlabs.mail.ui.i18n.toLocale
 import rs.tapizlabs.mail.ui.model.MessageListItemUi
 import rs.tapizlabs.mail.ui.theme.AppColors
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import kotlin.math.abs
 
 /**
@@ -62,7 +59,19 @@ fun MessageListItem(
     isDraft: Boolean = false,
 ) {
     val colors = AppColors
+    val strings = LocalStrings.current
     val interactionSource = remember { MutableInteractionSource() }
+    // Sent/Drafts rows are all "from me" — the recipient is what identifies them.
+    val counterpart = if (message.isOutgoing) {
+        message.toAddresses.substringBefore(',').trim()
+    } else {
+        message.fromName.ifBlank { message.fromAddress }
+    }
+    val title = when {
+        !message.isOutgoing -> counterpart
+        counterpart.isBlank() -> strings.messageNoRecipient
+        else -> "${strings.messageToPrefix}: $counterpart"
+    }
 
     Row(
         modifier = modifier
@@ -76,8 +85,9 @@ fun MessageListItem(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AvatarInitial(
-            name = message.fromName.ifBlank { message.fromAddress },
-            colorIndex = message.categoryColorIndex ?: senderHashIndex(message.fromAddress),
+            name = counterpart,
+            colorIndex = message.categoryColorIndex
+                ?: senderHashIndex(if (message.isOutgoing) counterpart else message.fromAddress),
         )
 
         Spacer(Modifier.width(12.dp))
@@ -94,7 +104,7 @@ fun MessageListItem(
                     Spacer(Modifier.width(6.dp))
                 }
                 Text(
-                    text = message.fromName.ifBlank { message.fromAddress },
+                    text = title,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = colors.textPrimary,
                         fontWeight = if (!message.isRead) FontWeight.Bold else FontWeight.Medium,
@@ -104,9 +114,9 @@ fun MessageListItem(
                     modifier = Modifier.weight(1f),
                 )
                 Spacer(Modifier.width(8.dp))
-                val appLanguage = LocalAppLanguage.current
+                val locale = LocalAppLanguage.current.toLocale()
                 Text(
-                    text = relativeTime(message.sentAt, appLanguage.toLocale()),
+                    text = remember(message.sentAt, locale) { MailDateFormat.rowTimestamp(message.sentAt, locale) },
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = colors.textMuted,
                         fontSize = 11.sp,
@@ -120,14 +130,14 @@ fun MessageListItem(
                 if (isDraft) {
                     Icon(
                         imageVector = Icons.Outlined.Edit,
-                        contentDescription = "Draft",
+                        contentDescription = strings.inboxChipDrafts,
                         tint = colors.textMuted,
                         modifier = Modifier.size(13.dp),
                     )
                     Spacer(Modifier.width(4.dp))
                 }
                 Text(
-                    text = message.subject.ifBlank { "(no subject)" },
+                    text = message.subject.ifBlank { strings.detailNoSubject },
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = colors.textPrimary,
                         fontWeight = if (!message.isRead) FontWeight.SemiBold else FontWeight.Normal,
@@ -162,7 +172,7 @@ fun MessageListItem(
         IconButton(onClick = onToggleStar, modifier = Modifier.size(36.dp)) {
             Icon(
                 imageVector = if (message.isStarred) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                contentDescription = if (message.isStarred) "Unstar" else "Star",
+                contentDescription = if (message.isStarred) strings.actionUnstar else strings.actionStar,
                 tint = if (message.isStarred) colors.amber else colors.textMuted,
                 modifier = Modifier.size(20.dp),
             )
@@ -194,21 +204,3 @@ private fun AvatarInitial(name: String, colorIndex: Int) {
 }
 
 private fun senderHashIndex(fromAddress: String): Int = fromAddress.hashCode()
-
-/** Built per-call against [locale] (not a fixed top-level formatter) so the month name
- * ("MMM") and any locale-specific separators follow the in-app language selection
- * ([rs.tapizlabs.mail.ui.i18n.LocalAppLanguage]) instead of the device's system locale —
- * without an explicit [Locale], [DateTimeFormatter.ofPattern] silently uses
- * `Locale.getDefault()`, which can disagree with what the user picked in this app. */
-private fun relativeTime(epochMillis: Long, locale: Locale): String {
-    val relativeTimeToday = DateTimeFormatter.ofPattern("HH:mm", locale)
-    val relativeTimeOlder = DateTimeFormatter.ofPattern("MMM d", locale)
-    val zone = ZoneId.systemDefault()
-    val then = Instant.ofEpochMilli(epochMillis).atZone(zone)
-    val now = Instant.now().atZone(zone)
-    return if (then.toLocalDate() == now.toLocalDate()) {
-        then.format(relativeTimeToday)
-    } else {
-        then.format(relativeTimeOlder)
-    }
-}

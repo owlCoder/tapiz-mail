@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.first
 import rs.tapizlabs.mail.MainActivity
 import rs.tapizlabs.mail.R
 import rs.tapizlabs.mail.core.local.PrefsStore
+import rs.tapizlabs.mail.ui.i18n.Strings
+import rs.tapizlabs.mail.ui.i18n.stringsFor
 import rs.tapizlabs.mail.data.local.entity.MessageEntity
 
 /**
@@ -58,6 +60,9 @@ class NewMailNotifier @Inject constructor(
         if (messages.isEmpty()) return
         if (!prefsStore.notificationsEnabledPref.first()) return
         val soundEnabled = prefsStore.notificationSoundEnabledPref.first()
+        // Resolved from the stored preference, not CurrentStrings: this runs from background
+        // sync where no UI has composed yet to keep that snapshot in step with the language.
+        val strings = stringsFor(prefsStore.languagePref.first())
         val channelId = ensureChannel(soundEnabled)
         val manager = context.getSystemService(NotificationManager::class.java)
 
@@ -65,7 +70,7 @@ class NewMailNotifier @Inject constructor(
             val message = messages.first()
             manager.notify(
                 notificationIdFor(message.id),
-                buildSingleMessageNotification(channelId, soundEnabled, accountDisplayName, message, isGrouped = false),
+                buildSingleMessageNotification(channelId, soundEnabled, accountDisplayName, message, strings, isGrouped = false),
             )
             return
         }
@@ -77,10 +82,10 @@ class NewMailNotifier @Inject constructor(
         messages.forEach { message ->
             manager.notify(
                 notificationIdFor(message.id),
-                buildSingleMessageNotification(channelId, soundEnabled, accountDisplayName, message, isGrouped = true),
+                buildSingleMessageNotification(channelId, soundEnabled, accountDisplayName, message, strings, isGrouped = true),
             )
         }
-        manager.notify(SUMMARY_NOTIFICATION_ID, buildSummaryNotification(channelId, soundEnabled, accountDisplayName, messages))
+        manager.notify(SUMMARY_NOTIFICATION_ID, buildSummaryNotification(channelId, soundEnabled, accountDisplayName, messages, strings))
     }
 
     private fun buildSingleMessageNotification(
@@ -88,6 +93,7 @@ class NewMailNotifier @Inject constructor(
         soundEnabled: Boolean,
         accountDisplayName: String,
         message: MessageEntity,
+        strings: Strings,
         isGrouped: Boolean,
     ): Notification {
         val senderLabel = message.fromName.ifBlank { message.fromAddress }
@@ -95,7 +101,7 @@ class NewMailNotifier @Inject constructor(
             .setSmallIcon(R.drawable.ic_notification)
             .setLargeIcon(largeIcon)
             .setContentTitle(senderLabel)
-            .setContentText(message.subject.ifBlank { "(no subject)" })
+            .setContentText(message.subject.ifBlank { strings.detailNoSubject })
             .setStyle(NotificationCompat.BigTextStyle().bigText(message.snippet.ifBlank { message.subject }))
             .setSubText(accountDisplayName)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -111,18 +117,19 @@ class NewMailNotifier @Inject constructor(
         soundEnabled: Boolean,
         accountDisplayName: String,
         messages: List<MessageEntity>,
+        strings: Strings,
     ): Notification {
         val inboxStyle = NotificationCompat.InboxStyle()
             .setSummaryText(accountDisplayName)
         messages.take(MAX_INBOX_STYLE_LINES).forEach { message ->
             val senderLabel = message.fromName.ifBlank { message.fromAddress }
-            inboxStyle.addLine("$senderLabel: ${message.subject.ifBlank { "(no subject)" }}")
+            inboxStyle.addLine("$senderLabel: ${message.subject.ifBlank { strings.detailNoSubject }}")
         }
 
         return NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_notification)
             .setLargeIcon(largeIcon)
-            .setContentTitle("${messages.size} new messages")
+            .setContentTitle(strings.notificationNewMessages(messages.size))
             .setContentText(accountDisplayName)
             .setStyle(inboxStyle)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

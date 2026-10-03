@@ -8,11 +8,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import rs.tapizlabs.mail.data.local.entity.MessageEntity
 import rs.tapizlabs.mail.data.repository.MailRepository
 import rs.tapizlabs.mail.data.repository.MailSyncGateway
 import rs.tapizlabs.mail.data.repository.OutgoingAttachmentRef
+import rs.tapizlabs.mail.mail.MailError
+import rs.tapizlabs.mail.ui.i18n.CurrentStrings
+import rs.tapizlabs.mail.ui.model.AccountSummaryUi
 import java.util.UUID
 import javax.inject.Inject
 
@@ -31,6 +35,11 @@ sealed class ComposeMode {
 data class ComposeUiState(
     val accountId: String? = null,
     val fromEmail: String = "",
+    /** Every configured account, for the From picker — a new message used to be sendable
+     * only from whichever account happened to be first. */
+    val accounts: List<AccountSummaryUi> = emptyList(),
+    val isReply: Boolean = false,
+    val isForward: Boolean = false,
     /** Set once this compose session has a backing draft row (freshly saved or re-opened
      * via [ComposeMode.EditDraft]) — subsequent saves update this row instead of inserting. */
     val draftId: String? = null,
@@ -84,44 +93,62 @@ class ComposeViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            val accounts = repository.observeAccounts().first()
+            val summaries = accounts.map { AccountSummaryUi(it.id, it.displayName, it.emailAddress) }
             if (sourceMessageId == null) {
-                val defaultAccount = repository.observeAccounts().first().firstOrNull()
-                if (defaultAccount != null) {
-                    _uiState.value = _uiState.value.copy(
-                        accountId = defaultAccount.id,
-                        fromEmail = defaultAccount.emailAddress,
+                val defaultAccount = accounts.firstOrNull()
+                _uiState.update {
+                    it.copy(
+                        accounts = summaries,
+                        accountId = defaultAccount?.id,
+                        fromEmail = defaultAccount?.emailAddress.orEmpty(),
                     )
                 }
                 return@launch
             }
 
-            val source = repository.getMessageOnce(sourceMessageId) ?: return@launch
-            val account = repository.observeAccounts().first().find { it.id == source.accountId }
-            _uiState.value = when (mode) {
-                is ComposeMode.Reply -> _uiState.value.copy(
+            val source = repository.getMessageOnce(sourceMessageId)
+            if (source == null) {
+                _uiState.update { it.copy(accounts = summaries) }
+                return@launch
+            }
+            val account = accounts.find { it.id == source.accountId }
+            val strings = CurrentStrings.value
+            _uiState.update { state ->
+                val base = state.copy(
+                    accounts = summaries,
                     accountId = source.accountId,
                     fromEmail = account?.emailAddress.orEmpty(),
-                    to = source.fromAddress,
-                    subject = prefixSubject("Re:", source.subject),
-                    body = quoteBody(source.fromName, source.bodyPlain),
                 )
-                is ComposeMode.Forward -> _uiState.value.copy(
-                    accountId = source.accountId,
-                    fromEmail = account?.emailAddress.orEmpty(),
-                    subject = prefixSubject("Fwd:", source.subject),
-                    body = quoteBody(source.fromName, source.bodyPlain),
-                )
-                is ComposeMode.EditDraft -> _uiState.value.copy(
-                    accountId = source.accountId,
-                    fromEmail = account?.emailAddress.orEmpty(),
-                    draftId = source.id,
-                    to = source.toAddresses,
-                    subject = source.subject,
-                    body = source.bodyPlain,
-                )
-                ComposeMode.New -> _uiState.value
+                when (mode) {
+                    is ComposeMode.Reply -> base.copy(
+                        isReply = true,
+                        to = source.fromAddress,
+                        subject = prefixSubject("Re:", source.subject),
+                        body = quoteBody(strings.composeOriginalMessage(source.senderLabel()), source.bodyPlain),
+                    )
+                    is ComposeMode.Forward -> base.copy(
+                        isForward = true,
+                        subject = prefixSubject("Fwd:", source.subject),
+                        body = quoteBody(strings.composeOriginalMessage(source.senderLabel()), source.bodyPlain),
+                    )
+                    is ComposeMode.EditDraft -> base.copy(
+                        draftId = source.id,
+                        to = source.toAddresses,
+                        subject = source.subject,
+                        body = source.bodyPlain,
+                    )
+                    ComposeMode.New -> base
+                }
             }
         }
+    }
+
+    /** From-account switch — only offered for new mail/drafts; a reply or forward stays tied
+     * to the account the original message belongs to. */
+    fun selectAccount(accountId: String) = update { state ->
+        val account = state.accounts.find { it.id == accountId } ?: return@update state
+        state.copy(accountId = account.id, fromEmail = account.emailAddress)
     }
 
     fun updateTo(value: String) = update { it.copy(to = value) }
@@ -144,13 +171,26 @@ class ComposeViewModel @Inject constructor(
         val accountId = state.accountId ?: return
         if (state.isSending) return
 
+        val strings = CurrentStrings.value
+        val to = splitAddresses(state.to)
+        val cc = splitAddresses(state.cc)
+        val bcc = splitAddresses(state.bcc)
+        // Caught here, before any network I/O, so a typo gets a precise message instead of
+        // whatever the SMTP server makes of it.
+        val invalid = (to + cc + bcc).firstOrNull { !EMAIL_PATTERN.matches(it) }
+        if (invalid != null) {
+            update { it.copy(sendError = strings.composeInvalidRecipient(invalid)) }
+            return
+        }
+        if (to.isEmpty()) return
+
         viewModelScope.launch {
-            _uiState.value = state.copy(isSending = true, sendError = null)
+            update { it.copy(isSending = true, sendError = null) }
             val result = syncGateway.sendMessage(
                 accountId = accountId,
-                to = splitAddresses(state.to),
-                cc = splitAddresses(state.cc),
-                bcc = splitAddresses(state.bcc),
+                to = to,
+                cc = cc,
+                bcc = bcc,
                 subject = state.subject,
                 bodyPlain = state.body,
                 attachments = state.attachments.map { OutgoingAttachmentRef(uri = it.uri, displayName = it.displayName) },
@@ -158,21 +198,18 @@ class ComposeViewModel @Inject constructor(
             )
             result.fold(
                 onSuccess = {
+                    // The Sent-folder append and the follow-up sync are the gateway's job
+                    // (on the application scope) — this screen is about to close.
                     state.draftId?.let { repository.discardDraft(it) }
-                    _uiState.value = _uiState.value.copy(isSending = false, sent = true)
-                    // SMTP send alone doesn't touch the account's IMAP Sent folder — most
-                    // servers (Gmail, UNS, etc.) append a copy there themselves, but the
-                    // local Room cache only sees it after the next sync. Without this,
-                    // the message just sent wouldn't show up under the Sent pseudo-category
-                    // until the user happened to pull-to-refresh. Best-effort/fire-and-forget:
-                    // a failed refresh here must not affect the already-successful send.
-                    syncGateway.refresh(accountId)
+                    update { it.copy(isSending = false, sent = true) }
                 },
                 onFailure = { error ->
-                    _uiState.value = _uiState.value.copy(
-                        isSending = false,
-                        sendError = error.message ?: "Failed to send",
-                    )
+                    val message = when (error) {
+                        is MailError.InvalidAddress -> strings.composeInvalidRecipient(error.address)
+                        is MailError.AuthenticationFailed -> error.message ?: strings.composeSendFailed
+                        else -> strings.composeSendFailed
+                    }
+                    update { it.copy(isSending = false, sendError = message) }
                 },
             )
         }
@@ -232,15 +269,23 @@ class ComposeViewModel @Inject constructor(
     }
 
     private fun update(transform: (ComposeUiState) -> ComposeUiState) {
-        _uiState.value = transform(_uiState.value)
+        _uiState.update(transform)
     }
 }
+
+/** Deliberately loose — just "something@something.tld" — the server is the real validator;
+ * this only catches obvious slips (missing @, stray spaces) before a send is attempted. */
+private val EMAIL_PATTERN = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
+
+private fun MessageEntity.senderLabel(): String = fromName.ifBlank { fromAddress }
 
 private fun prefixSubject(prefix: String, subject: String): String =
     if (subject.startsWith(prefix, ignoreCase = true)) subject else "$prefix $subject"
 
-private fun quoteBody(fromName: String, bodyPlain: String): String =
-    "\n\n---- Original message from $fromName ----\n$bodyPlain"
+/** Quotes the original with `> ` prefixes under a one-line attribution — the form the
+ * detail screen's plain-text renderer (and every other mail client) displays as a quote. */
+private fun quoteBody(attribution: String, bodyPlain: String): String =
+    "\n\n$attribution\n" + bodyPlain.trimEnd().lines().joinToString("\n") { "> $it" }
 
 private fun splitAddresses(raw: String): List<String> =
     raw.split(",", ";").map { it.trim() }.filter { it.isNotEmpty() }

@@ -21,40 +21,53 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MailOutline
+import androidx.compose.material.icons.outlined.AllInbox
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.RestoreFromTrash
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.outlined.UnfoldMore
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,11 +78,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import rs.tapizlabs.mail.data.local.entity.SwipeAction
 import rs.tapizlabs.mail.ui.components.CategoryChipsRow
 import rs.tapizlabs.mail.ui.components.MailConfirmDialog
+import rs.tapizlabs.mail.ui.components.MailDateFormat
 import rs.tapizlabs.mail.ui.components.MailGhostButton
+import rs.tapizlabs.mail.ui.components.MailIconChip
 import rs.tapizlabs.mail.ui.components.MailPulseSpinner
+import rs.tapizlabs.mail.ui.components.MailSheet
 import rs.tapizlabs.mail.ui.components.SkeletonMessageList
 import rs.tapizlabs.mail.ui.components.SwipeableMessageRow
 import rs.tapizlabs.mail.ui.i18n.LocalAppLanguage
@@ -78,10 +95,11 @@ import rs.tapizlabs.mail.ui.i18n.Strings
 import rs.tapizlabs.mail.ui.i18n.toLocale
 import rs.tapizlabs.mail.ui.model.AccountSummaryUi
 import rs.tapizlabs.mail.ui.model.CategoryChipUi
+import rs.tapizlabs.mail.ui.model.MessageListItemUi
 import rs.tapizlabs.mail.ui.search.SearchScreen
 import rs.tapizlabs.mail.ui.theme.AppColors
-import java.time.Instant
-import java.time.ZoneId
+import java.time.LocalDate
+import java.util.Locale
 
 /**
  * Inbox — the app's home screen (no bottom nav bar, per
@@ -120,12 +138,13 @@ fun InboxScreen(
     modifier: Modifier = Modifier,
     viewModel: InboxViewModel = hiltViewModel(),
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val colors = AppColors
     val strings = LocalStrings.current
     val locale = LocalAppLanguage.current.toLocale()
     var showSearch by rememberSaveable { mutableStateOf(false) }
     var showEmptyTrashConfirm by remember { mutableStateOf(false) }
+    var showAccountSwitcher by rememberSaveable { mutableStateOf(false) }
 
     BackHandler(enabled = showSearch) { showSearch = false }
 
@@ -139,20 +158,21 @@ fun InboxScreen(
             InboxTopBar(
                 accounts = uiState.accounts,
                 selectedAccountId = uiState.selectedAccountId,
-                onSelectAccount = viewModel::selectAccount,
-                onAddAccount = onAddAccount,
+                onOpenAccountSwitcher = { showAccountSwitcher = true },
                 onSearch = { showSearch = true },
                 onSettings = onSettings,
                 strings = strings,
             )
 
             if (!uiState.isLoading) {
-                UnreadCountHeader(count = uiState.messages.count { !it.isRead }, strings = strings)
+                InboxHeadline(uiState = uiState, strings = strings)
             }
 
+            // Inbox/category badges are unread counts, Drafts/Trash are item counts; Sent
+            // carries no badge — a total there says nothing actionable.
             val pseudoChips = listOf(
-                CategoryChipUi(id = null, name = strings.inboxChipInbox, count = uiState.inboxCount, colorIndex = 0),
-                CategoryChipUi(id = PSEUDO_CATEGORY_SENT, name = strings.inboxChipSent, count = uiState.sentCount, colorIndex = 0),
+                CategoryChipUi(id = null, name = strings.inboxChipInbox, count = uiState.inboxUnreadCount, colorIndex = 0),
+                CategoryChipUi(id = PSEUDO_CATEGORY_SENT, name = strings.inboxChipSent, count = 0, colorIndex = 0),
                 CategoryChipUi(id = PSEUDO_CATEGORY_DRAFTS, name = strings.inboxChipDrafts, count = uiState.draftsCount, colorIndex = 0),
                 CategoryChipUi(id = PSEUDO_CATEGORY_TRASH, name = strings.inboxChipTrash, count = uiState.trashCount, colorIndex = 0),
             )
@@ -161,6 +181,14 @@ fun InboxScreen(
                 selectedCategoryId = uiState.selectedCategoryId,
                 onSelectCategory = viewModel::selectCategory,
             )
+
+            AnimatedVisibility(visible = uiState.syncFailed) {
+                SyncErrorBanner(
+                    strings = strings,
+                    onRetry = { viewModel.refresh() },
+                    onDismiss = viewModel::dismissSyncError,
+                )
+            }
 
             if (uiState.isTrashSelected && uiState.messages.isNotEmpty()) {
                 Row(
@@ -182,7 +210,7 @@ fun InboxScreen(
             val pullState = rememberPullToRefreshState()
             PullToRefreshBox(
                 isRefreshing = uiState.isRefreshing,
-                onRefresh = viewModel::refresh,
+                onRefresh = { viewModel.refresh() },
                 state = pullState,
                 modifier = Modifier.fillMaxSize(),
             ) {
@@ -204,42 +232,78 @@ fun InboxScreen(
                 ) {
                     when {
                         uiState.isLoading -> InboxLoadingState()
-                        uiState.messages.isEmpty() -> InboxEmptyState(strings)
+                        uiState.messages.isEmpty() -> when {
+                            uiState.isDraftsSelected ->
+                                InboxEmptyState(title = strings.draftsEmpty, subtitle = strings.draftsEmptySubtext)
+                            // Sent/Trash being empty needs no explanation about syncing.
+                            uiState.isSentSelected || uiState.isTrashSelected ->
+                                InboxEmptyState(title = strings.inboxNoMessages, subtitle = null)
+                            else ->
+                                InboxEmptyState(title = strings.inboxNoMessages, subtitle = strings.inboxNoMessagesSubtext)
+                        }
                         else -> {
-                        val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+                        val listState = rememberLazyListState()
 
                         // Fires loadMore() once the user scrolls within 5 rows of the bottom —
                         // only for the main Inbox/Sent views (loadMore() itself no-ops for
                         // Drafts/Trash/user categories, see its doc), so a large mailbox's
                         // rest becomes reachable by scrolling instead of only ever showing
                         // the newest INITIAL_SYNC_LIMIT messages from first sync.
-                        val shouldLoadMore by androidx.compose.runtime.remember {
-                            androidx.compose.runtime.derivedStateOf {
+                        val shouldLoadMore by remember {
+                            derivedStateOf {
                                 val layoutInfo = listState.layoutInfo
                                 val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
                                 lastVisible >= layoutInfo.totalItemsCount - 5
                             }
                         }
-                        androidx.compose.runtime.LaunchedEffect(shouldLoadMore, uiState.messages.size) {
+                        LaunchedEffect(shouldLoadMore, uiState.messages.size) {
                             if (shouldLoadMore) viewModel.loadMore()
                         }
+
+                        // New mail is inserted above the current first row, and LazyColumn keeps
+                        // that row anchored in place — so the new message lands just off-screen
+                        // and nothing visibly happens. When the user is at (or within a few
+                        // rows of) the top, follow the list up to reveal it; deeper in the
+                        // list, their reading position is left alone.
+                        val newestMessageId = uiState.messages.firstOrNull()?.id
+                        LaunchedEffect(newestMessageId) {
+                            // One frame, so the list has re-anchored after the insert before
+                            // its position is read.
+                            withFrameNanos { }
+                            val nearTop = listState.firstVisibleItemIndex in 1..NEW_MAIL_FOLLOW_ROWS
+                            if (nearTop && !listState.isScrollInProgress) listState.animateScrollToItem(0)
+                        }
+
+                        // One pass over the list per data change, instead of formatting two
+                        // dates for every visible row on every recomposition while scrolling.
+                        val dayHeaders = remember(uiState.messages, strings, locale) {
+                            dayHeaders(uiState.messages, strings, locale)
+                        }
+                        val navigationBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
                         LazyColumn(
                             state = listState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                            // Bottom padding clears the FAB, so the last row's star/snippet
+                            // can be scrolled out from underneath it.
+                            contentPadding = PaddingValues(
+                                start = 14.dp,
+                                end = 14.dp,
+                                top = 4.dp,
+                                bottom = 92.dp + navigationBarInset,
+                            ),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            itemsIndexed(uiState.messages, key = { _, message -> message.id }) { index, message ->
-                                val previousLabel = uiState.messages.getOrNull(index - 1)?.let { dayLabel(it.sentAt, strings, locale) }
-                                val label = dayLabel(message.sentAt, strings, locale)
-                                if (label != previousLabel) {
-                                    DaySectionLabel(text = label)
-                                }
+                            itemsIndexed(
+                                items = uiState.messages,
+                                key = { _, message -> message.id },
+                                contentType = { _, _ -> "message" },
+                            ) { index, message ->
+                                dayHeaders.getOrNull(index)?.let { DaySectionLabel(text = it) }
                                 SwipeableMessageRow(
                                     message = message,
                                     onClick = {
-                                        if (uiState.selectedCategoryId == PSEUDO_CATEGORY_DRAFTS) {
+                                        if (uiState.isDraftsSelected) {
                                             onOpenDraft(message.id)
                                         } else {
                                             onOpenMessage(message.id)
@@ -258,7 +322,7 @@ fun InboxScreen(
                                     },
                                     onSwipeRight = {
                                         // Inside Trash, swipe-right restores the message back to
-                                        // the Inbox instead of applying the normal swipe config.
+                                        // where it came from instead of applying the swipe config.
                                         if (uiState.isTrashSelected) {
                                             viewModel.restoreMessage(message.id)
                                         } else {
@@ -267,6 +331,8 @@ fun InboxScreen(
                                     },
                                     leftAction = if (uiState.isTrashSelected) SwipeAction.DELETE else uiState.swipeLeftAction,
                                     rightAction = if (uiState.isTrashSelected) SwipeAction.MARK_UNREAD else uiState.swipeRightAction,
+                                    rightIconOverride = if (uiState.isTrashSelected) Icons.Outlined.RestoreFromTrash else null,
+                                    isDraft = uiState.isDraftsSelected,
                                     modifier = Modifier
                                         .animateItem(
                                             // Explicit, softer specs (matching the app's
@@ -285,7 +351,7 @@ fun InboxScreen(
                                 )
                             }
                             if (uiState.isLoadingMore) {
-                                item {
+                                item(contentType = "loading") {
                                     Box(
                                         modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                                         contentAlignment = Alignment.Center,
@@ -307,6 +373,7 @@ fun InboxScreen(
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
+                .navigationBarsPadding()
                 .padding(20.dp)
                 .size(56.dp)
                 .clip(RoundedCornerShape(18.dp))
@@ -316,7 +383,7 @@ fun InboxScreen(
         ) {
             Icon(
                 imageVector = Icons.Outlined.Edit,
-                contentDescription = "Compose",
+                contentDescription = strings.composeNewMessage,
                 tint = colors.onPrimary,
                 modifier = Modifier.size(22.dp),
             )
@@ -330,6 +397,16 @@ fun InboxScreen(
             onOpenMessage = onOpenMessage,
             onDismiss = { showSearch = false },
             modifier = Modifier.fillMaxSize(),
+        )
+
+        AccountSwitcherSheet(
+            visible = showAccountSwitcher,
+            accounts = uiState.accounts,
+            selectedAccountId = uiState.selectedAccountId,
+            onSelectAccount = viewModel::selectAccount,
+            onAddAccount = onAddAccount,
+            onDismiss = { showAccountSwitcher = false },
+            strings = strings,
         )
 
         MailConfirmDialog(
@@ -351,15 +428,15 @@ fun InboxScreen(
 private fun InboxTopBar(
     accounts: List<AccountSummaryUi>,
     selectedAccountId: String?,
-    onSelectAccount: (String?) -> Unit,
-    onAddAccount: () -> Unit,
+    onOpenAccountSwitcher: () -> Unit,
     onSearch: () -> Unit,
     onSettings: () -> Unit,
     strings: Strings,
 ) {
     val colors = AppColors
-    var menuExpanded by rememberSaveable { mutableStateOf(false) }
-    val selectedAccount = accounts.find { it.id == selectedAccountId }
+    // With a single account, "all accounts" IS that account — show it by name rather than
+    // a generic "All accounts" label.
+    val selectedAccount = accounts.find { it.id == selectedAccountId } ?: accounts.singleOrNull()
     val interactionSource = remember { MutableInteractionSource() }
     val tileShape = RoundedCornerShape(11.dp)
 
@@ -369,85 +446,44 @@ private fun InboxTopBar(
             .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
+        Row(
             modifier = Modifier
                 .weight(1f)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
-                    onClick = { menuExpanded = true },
+                    onClick = onOpenAccountSwitcher,
                 ),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(tileShape)
-                        .background(colors.primary),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = (selectedAccount?.displayName?.firstOrNull()?.uppercaseChar() ?: '?').toString(),
-                        style = MaterialTheme.typography.titleSmall.copy(
-                            color = colors.onPrimary,
-                            fontWeight = FontWeight.Bold,
-                        ),
-                    )
-                }
-                Spacer(Modifier.width(10.dp))
-                Column {
-                    Text(
-                        text = selectedAccount?.emailAddress ?: selectedAccount?.displayName ?: strings.inboxAllAccounts,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            color = colors.textPrimary,
-                            fontWeight = FontWeight.SemiBold,
-                        ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = strings.inboxAccountsSynced(accounts.size),
-                        style = MaterialTheme.typography.labelSmall.copy(color = colors.primary),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false },
-                containerColor = colors.card,
-                shadowElevation = 0.dp,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.border(width = 1.dp, color = colors.stroke, shape = RoundedCornerShape(14.dp)),
-            ) {
-                DropdownMenuItem(
-                    text = { Text(strings.inboxAllAccounts, color = colors.textPrimary) },
-                    leadingIcon = { Icon(Icons.Filled.MailOutline, contentDescription = null, tint = colors.textPrimary) },
-                    onClick = {
-                        menuExpanded = false
-                        onSelectAccount(null)
-                    },
+            // "All accounts" has no single owner to take an initial from.
+            AccountInitialTile(initial = selectedAccount?.displayName?.trim()?.firstOrNull() ?: '@')
+            Spacer(Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f, fill = false)) {
+                Text(
+                    text = selectedAccount?.emailAddress ?: selectedAccount?.displayName ?: strings.inboxAllAccounts,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = colors.textPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
-                accounts.forEach { account ->
-                    DropdownMenuItem(
-                        text = { Text(account.displayName, color = colors.textPrimary) },
-                        onClick = {
-                            menuExpanded = false
-                            onSelectAccount(account.id)
-                        },
-                    )
-                }
-                HorizontalDivider(color = colors.stroke)
-                DropdownMenuItem(
-                    text = { Text(strings.inboxAddAccount, color = colors.primary) },
-                    onClick = {
-                        menuExpanded = false
-                        onAddAccount()
-                    },
+                Text(
+                    text = strings.inboxAccountsSynced(accounts.size),
+                    style = MaterialTheme.typography.labelSmall.copy(color = colors.primary),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
+            // Marks the header as opening the account switcher before it's tapped — same
+            // glyph as Compose's switchable "From" row.
+            Icon(
+                imageVector = Icons.Outlined.UnfoldMore,
+                contentDescription = null,
+                tint = colors.textMuted,
+                modifier = Modifier.padding(horizontal = 6.dp).size(16.dp),
+            )
         }
 
         // Search icon — a deliberate deviation from the reference (which shows no search
@@ -463,7 +499,7 @@ private fun InboxTopBar(
         ) {
             Icon(
                 imageVector = Icons.Outlined.Search,
-                contentDescription = "Search",
+                contentDescription = strings.searchPlaceholder,
                 tint = colors.textPrimary,
                 modifier = Modifier.size(16.dp),
             )
@@ -481,7 +517,7 @@ private fun InboxTopBar(
         ) {
             Icon(
                 imageVector = Icons.Outlined.Settings,
-                contentDescription = null,
+                contentDescription = strings.settingsTitle,
                 tint = colors.textPrimary,
                 modifier = Modifier.size(16.dp),
             )
@@ -489,28 +525,224 @@ private fun InboxTopBar(
     }
 }
 
-/** Big "N unread" headline + subcopy directly below the top bar — matches the
- * reference's "24 unread" / "Sorted automatically by your rules" block. */
+/** Rounded-square account avatar (owner's initial on the primary color) — the Inbox header
+ * and the account switcher rows share it. */
 @Composable
-private fun UnreadCountHeader(count: Int, strings: Strings) {
+private fun AccountInitialTile(initial: Char) {
     val colors = AppColors
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(RoundedCornerShape(11.dp))
+            .background(colors.primary),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = initial.uppercaseChar().toString(),
+            style = MaterialTheme.typography.titleSmall.copy(
+                color = colors.onPrimary,
+                fontWeight = FontWeight.Bold,
+            ),
+        )
+    }
+}
+
+/** Account switcher on the shared [MailSheet] (scrim tap/back = cancel, 80% height cap) —
+ * "All accounts" (only with more than one), each account, then the single "Add account"
+ * action. */
+@Composable
+private fun AccountSwitcherSheet(
+    visible: Boolean,
+    accounts: List<AccountSummaryUi>,
+    selectedAccountId: String?,
+    onSelectAccount: (String?) -> Unit,
+    onAddAccount: () -> Unit,
+    onDismiss: () -> Unit,
+    strings: Strings,
+) {
+    val colors = AppColors
+    MailSheet(visible = visible, onDismiss = onDismiss) {
+        Text(
+            text = strings.settingsAccountsSection,
+            style = MaterialTheme.typography.titleMedium,
+            color = colors.textPrimary,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(8.dp))
+        if (accounts.size > 1) {
+            AccountSwitcherRow(
+                leading = { MailIconChip(icon = Icons.Outlined.AllInbox, size = 36.dp) },
+                title = strings.inboxAllAccounts,
+                subtitle = null,
+                selected = selectedAccountId == null,
+                onClick = {
+                    onSelectAccount(null)
+                    onDismiss()
+                },
+            )
+        }
+        accounts.forEach { account ->
+            AccountSwitcherRow(
+                leading = { AccountInitialTile(initial = account.displayName.trim().firstOrNull() ?: '@') },
+                title = account.displayName,
+                subtitle = account.emailAddress,
+                selected = account.id == selectedAccountId || accounts.size == 1,
+                onClick = {
+                    onSelectAccount(account.id)
+                    onDismiss()
+                },
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        MailGhostButton(
+            text = strings.inboxAddAccount,
+            icon = Icons.Filled.Add,
+            onClick = {
+                onDismiss()
+                onAddAccount()
+            },
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+private fun AccountSwitcherRow(
+    leading: @Composable () -> Unit,
+    title: String,
+    subtitle: String?,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = AppColors
+    val interactionSource = remember { MutableInteractionSource() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        leading()
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.textPrimary,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        if (selected) {
+            Icon(imageVector = Icons.Filled.Check, contentDescription = null, tint = colors.primary)
+        }
+    }
+}
+
+/** Big headline + subcopy directly below the top bar — "N unread" for the Inbox and user
+ * categories (matches the reference's "24 unread" / "Sorted automatically by your rules"
+ * block); the Sent/Drafts/Trash views name themselves and show their item count instead,
+ * since "no unread" says nothing useful about a list of sent mail or drafts. */
+@Composable
+private fun InboxHeadline(uiState: InboxUiState, strings: Strings) {
+    val colors = AppColors
+    val isPseudoView = uiState.isSentSelected || uiState.isDraftsSelected || uiState.isTrashSelected
+    val title = when {
+        uiState.isSentSelected -> strings.inboxChipSent
+        uiState.isDraftsSelected -> strings.inboxChipDrafts
+        uiState.isTrashSelected -> strings.inboxChipTrash
+        else -> {
+            val unread = uiState.messages.count { !it.isRead }
+            if (unread == 0) strings.inboxNoUnread else strings.inboxUnreadCount(unread)
+        }
+    }
+    val subtitle = if (isPseudoView) strings.inboxMessagesCount(uiState.messages.size) else strings.inboxUnreadSubtext
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 16.dp)) {
         Text(
-            text = if (count == 0) strings.inboxNoUnread else strings.inboxUnreadCount(count),
+            text = title,
             style = MaterialTheme.typography.headlineSmall.copy(
                 color = colors.textPrimary,
                 fontWeight = FontWeight.Bold,
             ),
         )
         Text(
-            text = strings.inboxUnreadSubtext,
+            text = subtitle,
             style = MaterialTheme.typography.bodySmall.copy(color = colors.textSecondary),
         )
     }
 }
 
+/** Shown under the chips after a user-initiated refresh fails — the cached list stays
+ * usable underneath, this only explains why nothing new arrived and offers a retry. */
 @Composable
-private fun InboxEmptyState(strings: Strings) {
+private fun SyncErrorBanner(strings: Strings, onRetry: () -> Unit, onDismiss: () -> Unit) {
+    val colors = AppColors
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 4.dp)
+            .clip(shape)
+            .background(colors.coral.copy(alpha = 0.12f))
+            .border(width = 1.dp, color = colors.coral.copy(alpha = 0.35f), shape = shape)
+            .padding(start = 12.dp, top = 6.dp, bottom = 6.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.CloudOff,
+            contentDescription = null,
+            tint = colors.coral,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text = strings.inboxSyncFailed,
+            style = MaterialTheme.typography.bodySmall.copy(color = colors.textPrimary),
+            modifier = Modifier.weight(1f),
+        )
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(onClick = onRetry)
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Refresh,
+                contentDescription = null,
+                tint = colors.primary,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = strings.inboxRetry,
+                style = MaterialTheme.typography.labelLarge.copy(color = colors.primary, fontWeight = FontWeight.SemiBold),
+            )
+        }
+        IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
+            Icon(
+                imageVector = Icons.Outlined.Close,
+                contentDescription = strings.composeCancel,
+                tint = colors.textMuted,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun InboxEmptyState(title: String, subtitle: String?) {
     val colors = AppColors
     Column(
         modifier = Modifier
@@ -539,19 +771,21 @@ private fun InboxEmptyState(strings: Strings) {
         }
         Spacer(Modifier.height(20.dp))
         Text(
-            text = strings.inboxNoMessages,
+            text = title,
             style = MaterialTheme.typography.titleMedium.copy(
                 color = colors.textPrimary,
                 fontWeight = FontWeight.Bold,
             ),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
-        Spacer(Modifier.height(6.dp))
-        Text(
-            text = strings.inboxNoMessagesSubtext,
-            style = MaterialTheme.typography.bodySmall.copy(color = colors.textMuted),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        )
+        if (subtitle != null) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall.copy(color = colors.textMuted),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+        }
     }
 }
 
@@ -576,16 +810,24 @@ private fun DaySectionLabel(text: String) {
     )
 }
 
-private fun dayLabel(epochMillis: Long, strings: Strings, locale: java.util.Locale): String {
-    val zone = ZoneId.systemDefault()
-    val then = Instant.ofEpochMilli(epochMillis).atZone(zone).toLocalDate()
-    val today = Instant.now().atZone(zone).toLocalDate()
-    return when (then) {
-        today -> strings.inboxToday
-        today.minusDays(1) -> strings.inboxYesterday
-        // LocalDate.toString() is always ISO-8601 ("2026-06-12") regardless of locale —
-        // format explicitly against the in-app language so this reads like the rest of the
-        // UI (e.g. "12. jun" for sr) instead of a raw ISO date.
-        else -> then.format(java.time.format.DateTimeFormatter.ofPattern("d. MMM", locale))
+/** How many rows from the top still counts as "at the top" for following newly arrived
+ * mail into view (see the list's `newestMessageId` effect). */
+private const val NEW_MAIL_FOLLOW_ROWS = 3
+
+/** Section label for each row, or null where a row continues the previous row's day —
+ * index-aligned with [messages]. */
+private fun dayHeaders(messages: List<MessageListItemUi>, strings: Strings, locale: Locale): List<String?> {
+    val today = LocalDate.now()
+    val yesterday = today.minusDays(1)
+    var previousDay: LocalDate? = null
+    return messages.map { message ->
+        val day = MailDateFormat.localDate(message.sentAt)
+        if (day == previousDay) return@map null
+        previousDay = day
+        when (day) {
+            today -> strings.inboxToday
+            yesterday -> strings.inboxYesterday
+            else -> MailDateFormat.shortDate(day, locale)
+        }
     }
 }

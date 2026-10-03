@@ -1,7 +1,9 @@
 package rs.tapizlabs.mail.mail
 
+import javax.mail.FolderClosedException
 import javax.mail.Multipart
 import javax.mail.Part
+import javax.mail.StoreClosedException
 import javax.mail.internet.MimePart
 import javax.mail.internet.MimeUtility
 
@@ -41,9 +43,9 @@ internal object MimePartWalker {
     ) {
         when {
             part.isMimeType("text/plain") && disposition(part) != Part.ATTACHMENT ->
-                runCatching { onText(part.content as String, false) }
+                textOf(part)?.let { onText(it, false) }
             part.isMimeType("text/html") && disposition(part) != Part.ATTACHMENT ->
-                runCatching { onText(part.content as String, true) }
+                textOf(part)?.let { onText(it, true) }
             part.isMimeType("multipart/*") -> {
                 val mp = part.content as Multipart
                 for (i in 0 until mp.count) {
@@ -52,6 +54,20 @@ internal object MimePartWalker {
             }
             isAttachment(part) -> attachments.add(toParsedAttachment(part, partIndexCounter[0]++))
         }
+    }
+
+    /** A part's decoded text, or null if it can't be decoded (unknown charset, broken
+     * encoding). A dropped connection is NOT swallowed here — it must abort the whole message
+     * parse, otherwise the message would be stored with an empty body and, since sync never
+     * re-fetches a UID it already has, stay that way for good. */
+    private fun textOf(part: Part): String? = try {
+        part.content as? String
+    } catch (e: FolderClosedException) {
+        throw e
+    } catch (e: StoreClosedException) {
+        throw e
+    } catch (e: Exception) {
+        null
     }
 
     private fun findIndexed(part: Part, targetIndex: Int, counter: IntArray): Part? {

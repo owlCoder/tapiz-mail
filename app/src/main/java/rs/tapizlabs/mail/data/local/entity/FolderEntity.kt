@@ -11,6 +11,8 @@ enum class FolderType {
     SENT,
     DRAFTS,
     TRASH,
+    /** Spam/Junk mailbox — provisioned so it's recognized, but never synced or shown. */
+    JUNK,
     CUSTOM,
 }
 

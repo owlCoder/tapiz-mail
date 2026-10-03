@@ -17,6 +17,17 @@ interface CategoryRuleDao {
     @Query("SELECT * FROM category_rules")
     suspend fun getAllRulesOnce(): List<CategoryRuleEntity>
 
+    /** Rules that apply to [accountId]'s mail: those of global categories plus those of the
+     * account's own categories — never another account's. */
+    @Query(
+        """
+        SELECT category_rules.* FROM category_rules
+        INNER JOIN categories ON category_rules.categoryId = categories.id
+        WHERE categories.accountId IS NULL OR categories.accountId = :accountId
+        """
+    )
+    suspend fun getRulesForAccountOnce(accountId: String): List<CategoryRuleEntity>
+
     @Upsert
     suspend fun upsert(rule: CategoryRuleEntity)
 

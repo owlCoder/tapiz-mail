@@ -16,10 +16,14 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import rs.tapizlabs.mail.data.local.dao.AccountDao
 import rs.tapizlabs.mail.sync.IdleSyncService
@@ -45,11 +49,30 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        // Kick off the IDLE foreground service on app launch — it self-filters to only
-        // accounts with supportsIdle = true and self-stops a few minutes after the app
-        // backgrounds (see IdleSyncService), so this is safe to call unconditionally here
-        // rather than threading an account-aware check through the UI layer.
-        ContextCompat.startForegroundService(this, Intent(this, IdleSyncService::class.java))
+        // (Re)start the IDLE foreground service whenever the app is in the foreground and at
+        // least one active account supports IDLE. Tied to STARTED rather than fired once from
+        // onCreate: the service stops itself a few minutes after the app backgrounds (see
+        // IdleSyncService), and coming back to an activity that was never destroyed doesn't
+        // run onCreate again — push sync used to stay off until the process was restarted.
+        // Skipping the start when no account can use it also avoids showing its ongoing
+        // "sync" notification for nothing.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                accountDao.getActiveAccounts()
+                    .map { accounts -> accounts.any { it.supportsIdle } }
+                    .distinctUntilChanged()
+                    .collect { hasIdleAccount ->
+                        if (hasIdleAccount) {
+                            runCatching {
+                                ContextCompat.startForegroundService(
+                                    this@MainActivity,
+                                    Intent(this@MainActivity, IdleSyncService::class.java),
+                                )
+                            }
+                        }
+                    }
+            }
+        }
         // Defensively re-arm every account's periodic WorkManager sync on every app launch.
         // scheduleFor() is otherwise only called from Add-Account/Settings, so if the OS ever
         // drops the enqueued periodic work (Force Stop, battery-optimization "clear background

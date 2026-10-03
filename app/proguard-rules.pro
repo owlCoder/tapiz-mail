@@ -15,6 +15,8 @@
 -keep class com.sun.mail.** { *; }
 -keep class javax.mail.** { *; }
 -keep class com.sun.activation.** { *; }
+-keep class javax.activation.** { *; }
 -keepnames class com.sun.mail.** { *; }
 -dontwarn com.sun.mail.**
 -dontwarn javax.mail.**
+-dontwarn javax.activation.**

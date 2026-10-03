@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Mail
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -30,7 +32,6 @@ import rs.tapizlabs.mail.ui.components.ProviderBadge
 import rs.tapizlabs.mail.ui.components.ProviderBrandColors
 import rs.tapizlabs.mail.ui.i18n.LocalStrings
 import rs.tapizlabs.mail.ui.theme.AppColors
-import androidx.compose.material.icons.filled.CheckCircle
 
 /**
  * First step of the add-account flow: pick a provider (Gmail/Outlook prefill known
@@ -78,7 +79,7 @@ fun ChooseProviderScreen(onBack: () -> Unit, onProviderChosen: (MailProvider) ->
             ProviderOptionRow(
                 title = strings.providerCustomTitle,
                 description = strings.providerCustomDescription,
-                badge = { MailIconChip(icon = Icons.Outlined.Mail) },
+                badge = { MailIconChip(icon = Icons.Outlined.Dns) },
                 onClick = { onProviderChosen(MailProvider.CUSTOM) },
             )
         }
@@ -99,7 +100,7 @@ private fun ProviderOptionRow(title: String, description: String, badge: @Compos
                 Text(text = title, color = colors.textPrimary, fontWeight = FontWeight.SemiBold)
                 Text(text = description, color = colors.textMuted, style = MaterialTheme.typography.bodySmall)
             }
-            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = colors.textMuted.copy(alpha = 0.3f))
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.textMuted)
         }
     }
 }

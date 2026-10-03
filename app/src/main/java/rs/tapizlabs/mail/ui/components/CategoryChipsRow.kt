@@ -12,11 +12,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -31,7 +34,7 @@ private const val CHIP_ANIM_MS = 160
 
 /**
  * Horizontal scrollable row of category chips (Primary + custom categories), each showing
- * name + count. Selected chip uses `accentSoft` background per the theme's convention.
+ * its name plus a count badge when that count is non-zero. Selected chip uses `accentSoft` background per the theme's convention.
  */
 @Composable
 fun CategoryChipsRow(
@@ -94,8 +97,16 @@ private fun CategoryChip(
         label = "chip_border_width",
     )
 
+    // The row scrolls horizontally; a chip selected while half off-screen (or restored as
+    // selected after navigation) should slide fully into view rather than stay clipped.
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    LaunchedEffect(selected) {
+        if (selected) bringIntoViewRequester.bringIntoView()
+    }
+
     Row(
         modifier = Modifier
+            .bringIntoViewRequester(bringIntoViewRequester)
             .clip(shape)
             .background(backgroundColor)
             .border(width = borderWidth, color = borderColor, shape = shape)
@@ -114,12 +125,14 @@ private fun CategoryChip(
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             ),
         )
-        Text(
-            text = "${category.count}",
-            style = MaterialTheme.typography.labelMedium.copy(
-                color = countColor,
-                fontWeight = FontWeight.Medium,
-            ),
-        )
+        if (category.count > 0) {
+            Text(
+                text = if (category.count > 999) "999+" else "${category.count}",
+                style = MaterialTheme.typography.labelMedium.copy(
+                    color = countColor,
+                    fontWeight = FontWeight.Medium,
+                ),
+            )
+        }
     }
 }

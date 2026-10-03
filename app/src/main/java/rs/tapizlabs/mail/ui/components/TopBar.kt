@@ -16,15 +16,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import rs.tapizlabs.mail.ui.i18n.LocalStrings
 import rs.tapizlabs.mail.ui.theme.AppColors
 
 /**
  * Top-bar back button — a round chip (cardSubtle fill, hairline border, soft shadow), same
  * structural recipe as `BackArrowButton` in tapiz-lms/apps/android and tapiz-boards/android, so
  * the arrow reads as a button rather than a bare unstyled `IconButton`. Only the touch/press
- * feedback stays Mail's own default ripple (Mail's own button family uses a flat/signal-edge
- * press style, not the scale/lift used elsewhere — this chip only borrows the *shape*, not the
- * interaction, keeping Mail's deliberate press-style difference intact).
+ * feedback stays Mail's own default ripple (Mail's buttons are flat, without the scale/lift
+ * press used elsewhere — this chip only borrows the *shape*, not the interaction).
  */
 @Composable
 fun BackArrowButton(
@@ -45,7 +45,7 @@ fun BackArrowButton(
     ) {
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-            contentDescription = null,
+            contentDescription = LocalStrings.current.commonBack,
             tint = tint,
         )
     }

@@ -149,7 +149,12 @@ class AddAccountViewModel @Inject constructor(
     }
 
     fun updateDisplayName(value: String) = invalidateTest { it.copy(displayName = value) }
-    fun updateEmailAddress(value: String) = invalidateTest { it.copy(emailAddress = value) }
+    /** Keeps the username in step with the email while the two still match — it's the same
+     * value for nearly every provider, so the user shouldn't have to type it twice. */
+    fun updateEmailAddress(value: String) = invalidateTest {
+        val usernameFollows = it.username.isEmpty() || it.username == it.emailAddress
+        it.copy(emailAddress = value, username = if (usernameFollows) value else it.username)
+    }
     fun updateUsername(value: String) = invalidateTest { it.copy(username = value) }
     fun updatePassword(value: String) = invalidateTest { it.copy(password = value) }
     fun updateImapHost(value: String) = invalidateTest { it.copy(imapHost = value) }
@@ -166,22 +171,25 @@ class AddAccountViewModel @Inject constructor(
 
     fun testConnection() {
         val current = _state.value
-        val port = current.imapPort.toIntOrNull()
-        if (port == null) {
-            _state.update { it.copy(connectionTestState = ConnectionTestState.FAILED, connectionError = "Invalid IMAP port") }
+        if (current.connectionTestState == ConnectionTestState.TESTING) return
+        val port = current.imapPort.toIntOrNull()?.takeIf { it in 1..65535 }
+        val smtpPort = current.smtpPort.toIntOrNull()?.takeIf { it in 1..65535 }
+        if (port == null || smtpPort == null) {
+            val which = if (port == null) "IMAP" else "SMTP"
+            _state.update { it.copy(connectionTestState = ConnectionTestState.FAILED, connectionError = "$which port?") }
             return
         }
         val probeAccount = AccountEntity(
             id = editingAccountId ?: "probe",
             displayName = current.displayName,
-            emailAddress = current.emailAddress,
-            imapHost = current.imapHost,
+            emailAddress = current.emailAddress.trim(),
+            imapHost = current.imapHost.trim(),
             imapPort = port,
             imapSecurity = current.imapSecurity,
-            smtpHost = current.smtpHost,
-            smtpPort = current.smtpPort.toIntOrNull() ?: 587,
+            smtpHost = current.smtpHost.trim(),
+            smtpPort = smtpPort,
             smtpSecurity = current.smtpSecurity,
-            username = current.username,
+            username = current.username.trim(),
             syncIntervalMinutes = current.syncIntervalMinutes,
             supportsIdle = false,
             isActive = true,
@@ -191,22 +199,37 @@ class AddAccountViewModel @Inject constructor(
 
         viewModelScope.launch {
             _state.update { it.copy(connectionTestState = ConnectionTestState.TESTING, connectionError = null) }
-            val result = accountRepository.testConnectionWithIdleProbe(probeAccount, current.password)
-            result.fold(
-                onSuccess = { supportsIdle ->
-                    _state.update {
-                        it.copy(connectionTestState = ConnectionTestState.SUCCESS, probedSupportsIdle = supportsIdle)
-                    }
-                },
-                onFailure = { error ->
-                    _state.update {
-                        it.copy(
-                            connectionTestState = ConnectionTestState.FAILED,
-                            connectionError = error.message ?: "Could not connect with these settings",
-                        )
-                    }
-                },
-            )
+            // Both directions: incoming (IMAP, also probes IDLE) and outgoing (SMTP). Testing
+            // only IMAP let an account with wrong SMTP settings be saved as "verified" and
+            // fail on the first message the user tried to send.
+            val imapResult = accountRepository.testConnectionWithIdleProbe(probeAccount, current.password)
+            val failure = imapResult.exceptionOrNull()?.let { "IMAP: ${it.message}" }
+                ?: syncGateway.testSmtpConnection(probeAccount, current.password)
+                    .exceptionOrNull()?.let { "SMTP: ${it.message}" }
+            _state.update {
+                // Ignore the outcome if the form was edited while the test was running —
+                // those results describe settings that are no longer on screen.
+                if (it.connectionTestState != ConnectionTestState.TESTING) return@update it
+                if (failure == null) {
+                    it.copy(
+                        connectionTestState = ConnectionTestState.SUCCESS,
+                        probedSupportsIdle = imapResult.getOrDefault(false),
+                    )
+                } else {
+                    it.copy(connectionTestState = ConnectionTestState.FAILED, connectionError = failure)
+                }
+            }
+        }
+    }
+
+    /** Removes the account being edited (its cached mail goes with it via foreign keys) and
+     * stops its background sync. Only meaningful in edit mode. */
+    fun removeAccount(onRemoved: () -> Unit) {
+        val account = editingAccountSnapshot ?: return
+        viewModelScope.launch {
+            accountRepository.deleteAccount(account)
+            syncScheduler.cancelFor(account.id)
+            onRemoved()
         }
     }
 
@@ -219,15 +242,15 @@ class AddAccountViewModel @Inject constructor(
             val existing = editingAccountSnapshot
             val account = AccountEntity(
                 id = editingAccountId ?: UUID.randomUUID().toString(),
-                displayName = current.displayName,
-                emailAddress = current.emailAddress,
-                imapHost = current.imapHost,
+                displayName = current.displayName.trim(),
+                emailAddress = current.emailAddress.trim(),
+                imapHost = current.imapHost.trim(),
                 imapPort = current.imapPort.toIntOrNull() ?: 993,
                 imapSecurity = current.imapSecurity,
-                smtpHost = current.smtpHost,
+                smtpHost = current.smtpHost.trim(),
                 smtpPort = current.smtpPort.toIntOrNull() ?: 587,
                 smtpSecurity = current.smtpSecurity,
-                username = current.username,
+                username = current.username.trim(),
                 syncIntervalMinutes = current.syncIntervalMinutes,
                 // Re-probed on every successful test (including edit-mode re-saves without a
                 // fresh test, where probedSupportsIdle was seeded from the existing account in
@@ -241,13 +264,12 @@ class AddAccountViewModel @Inject constructor(
             accountRepository.saveAccount(account, current.password, current.password)
             syncScheduler.scheduleFor(account)
             _state.update { it.copy(saving = false) }
-            onSaved(account)
-
             // Kick off an immediate fetch instead of waiting for the first periodic
             // WorkManager run — a newly added account should show mail right away, not
-            // whenever its sync interval next fires. Fire-and-forget: the screen has
-            // already navigated away via onSaved above, so nothing awaits this result.
-            runCatching { syncGateway.refresh(account.id) }
+            // whenever its sync interval next fires. On the application scope: onSaved
+            // navigates away, which cancels this ViewModel's scope mid-sync otherwise.
+            syncGateway.refreshInBackground(account.id)
+            onSaved(account)
         }
     }
 }

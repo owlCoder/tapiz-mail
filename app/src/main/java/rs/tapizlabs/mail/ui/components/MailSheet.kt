@@ -34,7 +34,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import rs.tapizlabs.mail.ui.theme.AppColors
 
@@ -75,7 +74,7 @@ fun MailSheet(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.32f))
+                    .background(colors.scrim)
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,

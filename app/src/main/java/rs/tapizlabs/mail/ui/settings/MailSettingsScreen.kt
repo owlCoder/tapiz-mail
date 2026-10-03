@@ -1,7 +1,6 @@
 package rs.tapizlabs.mail.ui.settings
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -43,9 +42,11 @@ import rs.tapizlabs.mail.data.local.entity.CategoryEntity
 import rs.tapizlabs.mail.data.local.entity.SwipeAction
 import rs.tapizlabs.mail.ui.components.BackArrowButton
 import rs.tapizlabs.mail.ui.components.MailCard
+import rs.tapizlabs.mail.ui.components.MailConfirmDialog
 import rs.tapizlabs.mail.ui.components.MailPickerSheet
 import rs.tapizlabs.mail.ui.components.MailSectionHeader
 import rs.tapizlabs.mail.ui.components.PickerSheetOption
+import rs.tapizlabs.mail.ui.components.SettingsValueRow
 import rs.tapizlabs.mail.ui.i18n.LocalStrings
 import rs.tapizlabs.mail.ui.i18n.Strings
 import rs.tapizlabs.mail.ui.theme.AppColors
@@ -75,6 +76,7 @@ fun MailSettingsScreen(
     var showSyncIntervalPicker by remember { mutableStateOf(false) }
     var showSwipeLeftPicker by remember { mutableStateOf(false) }
     var showSwipeRightPicker by remember { mutableStateOf(false) }
+    var categoryPendingDelete by remember { mutableStateOf<CategoryEntity?>(null) }
 
     Scaffold(
         topBar = {
@@ -120,7 +122,7 @@ fun MailSettingsScreen(
                     editingCategory = it
                     showCategorySheet = true
                 },
-                onDelete = viewModel::deleteCategory,
+                onDelete = { categoryPendingDelete = it },
                 strings = strings,
             )
         }
@@ -133,6 +135,19 @@ fun MailSettingsScreen(
         viewModel = viewModel,
         strings = strings,
         onDismiss = { showCategorySheet = false },
+    )
+
+    MailConfirmDialog(
+        visible = categoryPendingDelete != null,
+        title = strings.categoryDeleteTitle,
+        message = strings.categoryDeleteMessage(categoryPendingDelete?.name.orEmpty()),
+        confirmLabel = strings.swipeActionDelete,
+        cancelLabel = strings.settingsCancel,
+        onConfirm = {
+            categoryPendingDelete?.let(viewModel::deleteCategory)
+            categoryPendingDelete = null
+        },
+        onDismiss = { categoryPendingDelete = null },
     )
 
     // MailSheet/MailPickerSheet must render outside the scrollable Column above — nested
@@ -181,7 +196,7 @@ internal fun SyncSection(account: AccountEntity, onOpenPicker: () -> Unit, strin
             )
         }
         HorizontalDivider(color = colors.stroke)
-        SettingsFieldRow(
+        SettingsValueRow(
             label = strings.settingsSyncIntervalLabel,
             value = strings.settingsSyncIntervalMinutes(account.syncIntervalMinutes),
             onClick = onOpenPicker,
@@ -207,35 +222,17 @@ internal fun SwipeActionsSection(
             )
         }
         HorizontalDivider(color = colors.stroke)
-        SettingsFieldRow(
+        SettingsValueRow(
             label = strings.settingsSwipeLeft,
             value = swipeActionLabel(leftAction, strings),
             onClick = onOpenLeftPicker,
         )
         HorizontalDivider(color = colors.stroke)
-        SettingsFieldRow(
+        SettingsValueRow(
             label = strings.settingsSwipeRight,
             value = swipeActionLabel(rightAction, strings),
             onClick = onOpenRightPicker,
         )
-    }
-}
-
-/** One tappable label/value row inside a group [MailCard] — e.g. "Swipe left" / "Delete" —
- * used so a whole settings group (header + all its rows) reads as a single bordered card,
- * matching the Accounts section's own multi-row card instead of one card per field. */
-@Composable
-private fun SettingsFieldRow(label: String, value: String, onClick: () -> Unit) {
-    val colors = AppColors
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(text = label, color = colors.textMuted)
-        Text(text = value, color = colors.textPrimary, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -269,7 +266,7 @@ internal fun CategoriesSection(
                     modifier = Modifier.weight(1f),
                 )
                 IconButton(onClick = onAdd) {
-                    Icon(Icons.Filled.Add, contentDescription = strings.settingsCategoriesSection, tint = colors.primary)
+                    Icon(Icons.Filled.Add, contentDescription = strings.categoryAdd, tint = colors.primary)
                 }
             }
             if (categories.isEmpty()) {
@@ -301,7 +298,7 @@ internal fun CategoriesSection(
                     Text(text = category.name, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                     if (!category.isSystemDefault) {
                         IconButton(onClick = { onDelete(category) }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = colors.coral)
+                            Icon(Icons.Filled.Delete, contentDescription = strings.swipeActionDelete, tint = colors.coral)
                         }
                     }
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.textMuted)

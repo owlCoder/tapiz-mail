@@ -33,6 +33,11 @@ import androidx.room.PrimaryKey
         Index("folderId"),
         Index("categoryId"),
         Index("messageIdHeader"),
+        // List queries filter by account and order by date; sync looks rows up by
+        // (folder, uid) — including via originFolderId for messages in local Trash.
+        Index("accountId", "sentAt"),
+        Index("folderId", "uid"),
+        Index("originFolderId"),
     ],
 )
 data class MessageEntity(

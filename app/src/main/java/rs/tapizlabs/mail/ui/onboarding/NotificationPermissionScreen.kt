@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -87,6 +89,7 @@ fun NotificationPermissionScreen(
 
         MailPrimaryButton(
             text = strings.notifPermAllow,
+            icon = Icons.Outlined.NotificationsActive,
             onClick = onAllow,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -95,6 +98,7 @@ fun NotificationPermissionScreen(
 
         MailGhostButton(
             text = strings.notifPermSkip,
+            icon = Icons.AutoMirrored.Outlined.ArrowForward,
             onClick = onSkip,
             modifier = Modifier
                 .fillMaxWidth()

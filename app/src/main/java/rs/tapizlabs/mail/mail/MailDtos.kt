@@ -43,6 +43,18 @@ data class ParsedMessage(
     val attachments: List<ParsedAttachment>,
 )
 
+/** Server-side `\Seen`/`\Flagged` state of one message. */
+data class RemoteFlags(val isRead: Boolean, val isStarred: Boolean)
+
+/** Result of one folder sync round-trip (see [ImapClient.syncFolder]). */
+data class FolderSnapshot(
+    val newMessages: List<ParsedMessage>,
+    /** Server flag state keyed by uid for the reconciled uid window, or null when no
+     * reconcile was requested/possible — a uid inside the window that's missing from this
+     * map no longer exists on the server. */
+    val remoteFlags: Map<Long, RemoteFlags>?,
+)
+
 /** Typed connection/fetch failures so callers (Add-Account flow, sync worker, IDLE
  * service) can react without catching raw checked `MessagingException`s everywhere. */
 sealed class MailError(message: String, cause: Throwable? = null) : Exception(message, cause) {
@@ -52,6 +64,8 @@ sealed class MailError(message: String, cause: Throwable? = null) : Exception(me
         MailError("Could not connect to server: ${cause.reasonSuffix()}", cause)
     class FolderUnavailable(folderName: String, cause: Throwable) :
         MailError("Folder unavailable: $folderName (${cause.reasonSuffix()})", cause)
+    class InvalidAddress(val address: String, cause: Throwable) :
+        MailError("Invalid email address: $address", cause)
     class Unknown(cause: Throwable) : MailError(cause.message ?: "Unknown mail error", cause)
 }
 

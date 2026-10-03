@@ -1,5 +1,6 @@
 package rs.tapizlabs.mail.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -73,5 +74,41 @@ fun SettingsNavRow(
                 tint = colors.textMuted,
             )
         }
+    }
+}
+
+/**
+ * One tappable label/value row inside a group [MailCard] (e.g. "Swipe left" / "Delete"), so
+ * a whole settings group (header + all its rows) reads as a single bordered card. The
+ * trailing chevron marks it as opening a picker before the user taps it, not just after.
+ */
+@Composable
+fun SettingsValueRow(label: String, value: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = AppColors
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(start = 14.dp, top = 14.dp, bottom = 14.dp, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.textMuted,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.textPrimary,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = colors.textMuted,
+            modifier = Modifier.padding(start = 4.dp).size(20.dp),
+        )
     }
 }

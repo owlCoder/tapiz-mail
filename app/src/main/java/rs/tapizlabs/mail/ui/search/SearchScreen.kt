@@ -57,7 +57,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusEvent
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
@@ -110,7 +109,7 @@ fun SearchScreen(
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val maxPanelHeight = maxHeight * 0.88f
 
-        // Scrim — dims the inbox behind and dismisses on tap. Same 0.32 alpha as MailSheet
+        // Scrim — dims the inbox behind and dismisses on tap. Same `scrim` token as MailSheet
         // so the two overlays feel like one system.
         AnimatedVisibility(
             visible = visible,
@@ -121,7 +120,7 @@ fun SearchScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.32f))
+                    .background(colors.scrim)
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,
@@ -170,7 +169,7 @@ fun SearchScreen(
                         IconButton(onClick = dismiss) {
                             Icon(
                                 Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                                contentDescription = "Back",
+                                contentDescription = strings.commonBack,
                                 tint = colors.textPrimary,
                             )
                         }
@@ -178,6 +177,7 @@ fun SearchScreen(
                             query = uiState.query,
                             onQueryChange = viewModel::updateQuery,
                             placeholder = strings.searchPlaceholder,
+                            clearLabel = strings.commonClear,
                             focusRequester = focusRequester,
                             modifier = Modifier.weight(1f),
                         )
@@ -256,6 +256,7 @@ private fun SearchField(
     query: String,
     onQueryChange: (String) -> Unit,
     placeholder: String,
+    clearLabel: String,
     focusRequester: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
@@ -301,7 +302,7 @@ private fun SearchField(
         }
         if (query.isNotEmpty()) {
             IconButton(onClick = { onQueryChange("") }, modifier = Modifier.size(32.dp)) {
-                Icon(imageVector = Icons.Outlined.Close, contentDescription = "Clear", tint = colors.textMuted)
+                Icon(imageVector = Icons.Outlined.Close, contentDescription = clearLabel, tint = colors.textMuted)
             }
         }
     }
@@ -323,17 +324,20 @@ private fun FilterChipsRow(
             .padding(horizontal = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        FilterChip(
-            label = strings.searchAllAccounts,
-            selected = selectedAccountId == null,
-            onClick = { onSelectAccount(null) },
-        )
-        accounts.forEach { account ->
+        // An account filter only means something with more than one account.
+        if (accounts.size > 1) {
             FilterChip(
-                label = account.displayName,
-                selected = selectedAccountId == account.id,
-                onClick = { onSelectAccount(account.id) },
+                label = strings.searchAllAccounts,
+                selected = selectedAccountId == null,
+                onClick = { onSelectAccount(null) },
             )
+            accounts.forEach { account ->
+                FilterChip(
+                    label = account.displayName,
+                    selected = selectedAccountId == account.id,
+                    onClick = { onSelectAccount(account.id) },
+                )
+            }
         }
         FilterChip(
             label = strings.searchHasAttachment,

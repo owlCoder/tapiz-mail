@@ -14,16 +14,24 @@ object CategoryMatcher {
      * no rule matches. Rules are evaluated in list order; the caller controls priority via order.
      */
     fun categorize(message: MessageEntity, rules: List<CategoryRuleEntity>): String? =
-        rules.firstOrNull { rule -> matches(message, rule) }?.categoryId
+        categorize(message.fromName, message.fromAddress, message.subject, message.bodyPlain, rules)
 
-    private fun matches(message: MessageEntity, rule: CategoryRuleEntity): Boolean {
+    /** Field-based form of [categorize], for callers that only loaded the columns the rules
+     * can look at (re-categorizing cached mail without reading whole rows). */
+    fun categorize(
+        fromName: String,
+        fromAddress: String,
+        subject: String,
+        bodyPlain: String,
+        rules: List<CategoryRuleEntity>,
+    ): String? = rules.firstOrNull { rule ->
         val fieldValue = when (rule.matchField) {
-            RuleMatchField.SENDER -> "${message.fromName} ${message.fromAddress}"
-            RuleMatchField.SUBJECT -> message.subject
-            RuleMatchField.BODY -> message.bodyPlain
+            RuleMatchField.SENDER -> "$fromName $fromAddress"
+            RuleMatchField.SUBJECT -> subject
+            RuleMatchField.BODY -> bodyPlain
         }
-        return matchesValue(fieldValue, rule.matchType, rule.matchValue)
-    }
+        matchesValue(fieldValue, rule.matchType, rule.matchValue)
+    }?.categoryId
 
     private fun matchesValue(fieldValue: String, matchType: RuleMatchType, matchValue: String): Boolean {
         val haystack = fieldValue.lowercase()

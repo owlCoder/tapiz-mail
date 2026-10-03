@@ -56,6 +56,8 @@ fun CategoryEditorSheet(
     var ruleField by remember(visible) { mutableStateOf(RuleMatchField.SENDER) }
     var ruleType by remember(visible) { mutableStateOf(RuleMatchType.CONTAINS) }
     var ruleValue by remember(visible) { mutableStateOf("") }
+    // Rules added while creating a category — it has no id to attach them to until Save.
+    var pendingRules by remember(visible) { mutableStateOf(emptyList<PendingRule>()) }
 
     val rulesFlow = remember(category?.id) {
         category?.id?.let { viewModel.observeRulesForCategory(it) } ?: emptyFlow()
@@ -90,7 +92,25 @@ fun CategoryEditorSheet(
                     modifier = Modifier.weight(1f),
                 )
                 IconButton(onClick = { viewModel.deleteRule(rule) }) {
-                    Icon(Icons.Filled.Delete, contentDescription = "Delete rule", tint = colors.coral)
+                    Icon(Icons.Filled.Delete, contentDescription = strings.categoryEditorDeleteRule, tint = colors.coral)
+                }
+            }
+        }
+
+        pendingRules.forEach { rule ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "${ruleFieldLabel(rule.field, strings)} ${ruleTypeLabel(rule.type, strings).lowercase()} \"${rule.value}\"",
+                    color = colors.textPrimary,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = { pendingRules = pendingRules - rule }) {
+                    Icon(Icons.Filled.Delete, contentDescription = strings.categoryEditorDeleteRule, tint = colors.coral)
                 }
             }
         }
@@ -130,12 +150,17 @@ fun CategoryEditorSheet(
             icon = Icons.Outlined.Add,
             onClick = {
                 val categoryId = category?.id
-                if (categoryId != null && ruleValue.isNotBlank()) {
-                    viewModel.saveRule(categoryId, ruleField, ruleType, ruleValue, existingId = null)
+                val value = ruleValue.trim()
+                if (value.isNotEmpty()) {
+                    if (categoryId != null) {
+                        viewModel.saveRule(categoryId, ruleField, ruleType, value, existingId = null)
+                    } else {
+                        pendingRules = pendingRules + PendingRule(ruleField, ruleType, value)
+                    }
                     ruleValue = ""
                 }
             },
-            enabled = category != null && ruleValue.isNotBlank(),
+            enabled = ruleValue.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -145,7 +170,21 @@ fun CategoryEditorSheet(
             text = strings.categoryEditorSave,
             icon = Icons.Outlined.Save,
             onClick = {
-                viewModel.saveCategory(name, category?.id, accountId)
+                // A rule still sitting in the value field counts — typing one and going
+                // straight to Save shouldn't silently drop it.
+                val typedRule = ruleValue.trim().takeIf { it.isNotEmpty() }?.let { PendingRule(ruleField, ruleType, it) }
+                val existingId = category?.id
+                if (existingId != null && typedRule != null) {
+                    viewModel.saveRule(existingId, typedRule.field, typedRule.type, typedRule.value, existingId = null)
+                }
+                viewModel.saveCategory(
+                    name = name,
+                    existingId = existingId,
+                    // An existing category keeps its own scope (including "all accounts");
+                    // only a new one is created under the currently selected account.
+                    accountId = if (category != null) category.accountId else accountId,
+                    newRules = if (existingId == null) pendingRules + listOfNotNull(typedRule) else emptyList(),
+                )
                 onDismiss()
             },
             enabled = name.isNotBlank(),

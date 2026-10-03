@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import rs.tapizlabs.mail.data.local.entity.AttachmentEntity
 import rs.tapizlabs.mail.data.local.entity.MessageEntity
@@ -39,6 +40,9 @@ data class AttachmentUi(
     val localUri: String?,
     val isDownloading: Boolean = false,
 )
+
+/** Id prefix of the local-only Trash pseudo-folder (see MailRepository.moveToTrash). */
+private const val LOCAL_TRASH_FOLDER_PREFIX = "local-trash-"
 
 /** Nav-arg driven per Hilt+Nav convention used in `tapiz-boards`: the nav-graph agent passes
  * `messageId` as a route argument, read here via [SavedStateHandle]. */
@@ -79,25 +83,20 @@ class MailDetailViewModel @Inject constructor(
         // behavior; the sync layer's IMAP fetch already uses `mail.imap.peek` so this local
         // flip is the only place `\Seen` gets set from the read path.
         viewModelScope.launch {
-            repository.setRead(messageId, true)
-            // Best-effort IMAP `\Seen` mirror — see InboxViewModel.markRead for the same
-            // fire-and-forget contract; local Room state above already drives the UI.
-            syncGateway.setMessageSeenRemote(messageId, true)
+            // Only when it's actually unread — re-opening an already-read message shouldn't
+            // cost an IMAP connection just to set a flag that's already set.
+            if (repository.getMessageOnce(messageId)?.isRead == false) {
+                syncGateway.setRead(messageId, true)
+            }
         }
     }
 
     fun toggleStar(currentlyStarred: Boolean) {
-        viewModelScope.launch {
-            repository.setStarred(messageId, !currentlyStarred)
-            syncGateway.setMessageStarredRemote(messageId, !currentlyStarred)
-        }
+        viewModelScope.launch { syncGateway.setStarred(messageId, !currentlyStarred) }
     }
 
     fun markUnread() {
-        viewModelScope.launch {
-            repository.setRead(messageId, false)
-            syncGateway.setMessageSeenRemote(messageId, false)
-        }
+        viewModelScope.launch { syncGateway.setRead(messageId, false) }
     }
 
     /** [onDeleted] fires once the row is gone so the screen can navigate back — without this,
@@ -106,7 +105,15 @@ class MailDetailViewModel @Inject constructor(
      * to the inbox. */
     fun delete(onDeleted: () -> Unit) {
         viewModelScope.launch {
-            repository.moveToTrash(messageId)
+            val message = repository.getMessageOnce(messageId)
+            if (message != null && message.folderId.startsWith(LOCAL_TRASH_FOLDER_PREFIX)) {
+                // Already in Trash: deleting from here is the permanent delete, same as the
+                // Trash list's swipe — moving it to Trash again would do nothing at all.
+                syncGateway.deleteMessageRemote(messageId)
+                repository.permanentlyDeleteMessage(messageId)
+            } else {
+                repository.moveToTrash(messageId)
+            }
             onDeleted()
         }
     }
@@ -116,14 +123,16 @@ class MailDetailViewModel @Inject constructor(
      * [MailSyncGateway.downloadAttachment]'s doc), so Open/Save both need this before they
      * have anything to act on. [onReady] fires with the resulting `content://` URI so the
      * caller (the screen) can immediately follow through with whatever action (open/save)
-     * the user actually tapped, instead of requiring a second tap once the download lands. */
-    fun downloadAttachment(attachmentId: String, onReady: (uri: String) -> Unit) {
+     * the user actually tapped, instead of requiring a second tap once the download lands;
+     * [onFailed] lets it say so when the download didn't work, rather than the spinner just
+     * disappearing with nothing happening. */
+    fun downloadAttachment(attachmentId: String, onReady: (uri: String) -> Unit, onFailed: () -> Unit) {
         if (attachmentId in downloadingAttachmentIds.value) return
         viewModelScope.launch {
-            downloadingAttachmentIds.value = downloadingAttachmentIds.value + attachmentId
-            syncGateway.downloadAttachment(attachmentId)
-                .onSuccess(onReady)
-            downloadingAttachmentIds.value = downloadingAttachmentIds.value - attachmentId
+            downloadingAttachmentIds.update { it + attachmentId }
+            val result = syncGateway.downloadAttachment(attachmentId)
+            downloadingAttachmentIds.update { it - attachmentId }
+            result.onSuccess(onReady).onFailure { onFailed() }
         }
     }
 }

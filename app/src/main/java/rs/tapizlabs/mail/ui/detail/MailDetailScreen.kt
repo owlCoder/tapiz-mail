@@ -1,7 +1,10 @@
 package rs.tapizlabs.mail.ui.detail
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.os.Build
 import android.webkit.WebView
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -19,16 +22,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.outlined.Forward
-import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
@@ -42,21 +43,29 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import rs.tapizlabs.mail.ui.components.BackArrowButton
+import rs.tapizlabs.mail.ui.components.MailDateFormat
+import rs.tapizlabs.mail.ui.i18n.LocalAppLanguage
 import rs.tapizlabs.mail.ui.i18n.LocalStrings
 import rs.tapizlabs.mail.ui.i18n.Strings
+import rs.tapizlabs.mail.ui.i18n.toLocale
 import rs.tapizlabs.mail.ui.theme.AppColors
 
 /**
@@ -75,9 +84,10 @@ fun MailDetailScreen(
     modifier: Modifier = Modifier,
     viewModel: MailDetailViewModel = hiltViewModel(),
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val colors = AppColors
     val strings = LocalStrings.current
+    val context = LocalContext.current
 
     Scaffold(
         modifier = modifier,
@@ -94,7 +104,7 @@ fun MailDetailScreen(
     ) { padding ->
         if (uiState.notFound) {
             Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-                DetailTopBar(onBack = onBack)
+                DetailActionBar(onBack = onBack, strings = strings)
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
                         text = strings.detailMessageNotFound,
@@ -115,6 +125,7 @@ fun MailDetailScreen(
                 onBack = onBack,
                 onDelete = { viewModel.delete(onDeleted = onBack) },
                 onMarkUnread = { viewModel.markUnread(); onBack() },
+                strings = strings,
             )
 
             Column(modifier = Modifier.padding(horizontal = 20.dp)) {
@@ -122,8 +133,10 @@ fun MailDetailScreen(
                     fromName = uiState.fromName,
                     fromAddress = uiState.fromAddress,
                     toAddresses = uiState.toAddresses,
+                    sentAt = uiState.sentAt,
                     isStarred = uiState.isStarred,
                     onToggleStar = { viewModel.toggleStar(uiState.isStarred) },
+                    strings = strings,
                 )
 
                 Spacer(Modifier.height(16.dp))
@@ -153,7 +166,16 @@ fun MailDetailScreen(
                     uiState.attachments.forEach { attachment ->
                         AttachmentRow(
                             attachment = attachment,
-                            onDownload = { onReady -> viewModel.downloadAttachment(attachment.id, onReady) },
+                            onDownload = { onReady ->
+                                viewModel.downloadAttachment(
+                                    attachmentId = attachment.id,
+                                    onReady = onReady,
+                                    onFailed = {
+                                        Toast.makeText(context, strings.detailAttachmentDownloadFailed, Toast.LENGTH_SHORT).show()
+                                    },
+                                )
+                            },
+                            strings = strings,
                         )
                         Spacer(Modifier.height(8.dp))
                     }
@@ -163,53 +185,44 @@ fun MailDetailScreen(
     }
 }
 
+/** Back chip on the left (same [BackArrowButton] as every other pushed screen), message
+ * actions (delete/mark-unread) end-aligned on the right — all in one row, not stacked (a
+ * stacked back-then-actions layout was tried and explicitly rejected in favor of this
+ * single-row arrangement). The actions are omitted when there's no message to act on. */
 @Composable
-private fun DetailTopBar(onBack: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        BackArrowButton(onBack)
-    }
-}
-
-/** Back on the left, message actions (delete/mark-unread) end-aligned on the right — all in
- * one row, not stacked (a stacked back-then-actions layout was tried and explicitly rejected
- * in favor of this single-row arrangement). */
-@Composable
-private fun DetailActionBar(onBack: () -> Unit, onDelete: () -> Unit, onMarkUnread: () -> Unit) {
+private fun DetailActionBar(
+    onBack: () -> Unit,
+    strings: Strings,
+    onDelete: (() -> Unit)? = null,
+    onMarkUnread: (() -> Unit)? = null,
+) {
     val colors = AppColors
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 2.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                contentDescription = "Back",
-                tint = colors.textPrimary,
-            )
-        }
+        BackArrowButton(onBack)
         Spacer(Modifier.weight(1f))
-        IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
-            Icon(
-                imageVector = Icons.Outlined.Delete,
-                contentDescription = "Delete",
-                tint = colors.textMuted,
-            )
+        if (onDelete != null) {
+            IconButton(onClick = onDelete, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    imageVector = Icons.Outlined.Delete,
+                    contentDescription = strings.swipeActionDelete,
+                    tint = colors.coral,
+                )
+            }
         }
-        Spacer(Modifier.width(4.dp))
-        IconButton(onClick = onMarkUnread, modifier = Modifier.size(36.dp)) {
-            Icon(
-                imageVector = Icons.Outlined.MarkEmailUnread,
-                contentDescription = "Mark as unread",
-                tint = colors.textMuted,
-            )
+        if (onMarkUnread != null) {
+            Spacer(Modifier.width(4.dp))
+            IconButton(onClick = onMarkUnread, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    imageVector = Icons.Outlined.MarkEmailUnread,
+                    contentDescription = strings.swipeActionMarkUnread,
+                    tint = colors.textMuted,
+                )
+            }
         }
     }
 }
@@ -227,7 +240,7 @@ private fun DetailBottomBar(onReply: () -> Unit, onForward: () -> Unit, strings:
     ) {
         PastelActionButton(
             text = strings.detailReply,
-            icon = Icons.AutoMirrored.Outlined.Send,
+            icon = Icons.AutoMirrored.Outlined.Reply,
             onClick = onReply,
             modifier = Modifier.weight(1f),
         )
@@ -268,10 +281,13 @@ private fun MessageHeader(
     fromName: String,
     fromAddress: String,
     toAddresses: List<String>,
+    sentAt: Long,
     isStarred: Boolean,
     onToggleStar: () -> Unit,
+    strings: Strings,
 ) {
     val colors = AppColors
+    val locale = LocalAppLanguage.current.toLocale()
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
@@ -297,18 +313,38 @@ private fun MessageHeader(
                     color = colors.textPrimary,
                     fontWeight = FontWeight.Bold,
                 ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
+            // The address itself, when the row above shows a display name — a name alone
+            // doesn't tell you who actually sent it.
+            if (fromName.isNotBlank() && fromAddress.isNotBlank()) {
+                Text(
+                    text = fromAddress,
+                    style = MaterialTheme.typography.bodySmall.copy(color = colors.textMuted),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             if (toAddresses.isNotEmpty()) {
                 Text(
-                    text = "to ${toAddresses.joinToString(", ")}",
+                    text = "${strings.messageToPrefix}: ${toAddresses.joinToString(", ")}",
                     style = MaterialTheme.typography.bodySmall.copy(color = colors.textMuted),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (sentAt > 0L) {
+                Text(
+                    text = remember(sentAt, locale) { MailDateFormat.fullTimestamp(sentAt, locale) },
+                    style = MaterialTheme.typography.labelSmall.copy(color = colors.textMuted),
                 )
             }
         }
         IconButton(onClick = onToggleStar) {
             Icon(
                 imageVector = if (isStarred) Icons.Outlined.Star else Icons.Outlined.StarBorder,
-                contentDescription = if (isStarred) "Unstar" else "Star",
+                contentDescription = if (isStarred) strings.actionUnstar else strings.actionStar,
                 tint = if (isStarred) colors.amber else colors.textMuted,
             )
         }
@@ -321,6 +357,11 @@ private fun MessageBody(bodyHtml: String?, bodyPlain: String) {
     if (bodyHtml != null) {
         val backgroundArgb = colors.canvasTop.toArgb()
         val textArgb = colors.textPrimary.toArgb()
+        val linkArgb = colors.primary.toArgb()
+        val isDark = colors.isDark
+        val document = remember(bodyHtml, backgroundArgb, textArgb, linkArgb) {
+            wrapEmailHtml(bodyHtml, backgroundArgb, textArgb, linkArgb)
+        }
         AndroidView(
             modifier = Modifier.fillMaxWidth(),
             factory = { context ->
@@ -329,12 +370,25 @@ private fun MessageBody(bodyHtml: String?, bodyPlain: String) {
                     settings.javaScriptEnabled = false
                     settings.allowFileAccess = false
                     settings.allowContentAccess = false
+                    // The page scrolls with the surrounding Column; the WebView itself only
+                    // ever needs to pan sideways for a layout that can't be narrowed.
+                    isVerticalScrollBarEnabled = false
                     setBackgroundColor(backgroundArgb)
                 }
             },
             update = { webView ->
                 webView.setBackgroundColor(backgroundArgb)
-                webView.loadDataWithBaseURL(null, wrapEmailHtml(bodyHtml, backgroundArgb, textArgb), "text/html", "UTF-8", null)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    // Lets WebView darken light-only email markup (white table cells etc.)
+                    // when the app is in its dark theme — CSS alone can't reach those.
+                    webView.settings.isAlgorithmicDarkeningAllowed = isDark
+                }
+                // `update` runs on every recomposition (star toggle, attachment progress…);
+                // reloading the document each time made the body flash and reset scroll.
+                if (webView.tag != document) {
+                    webView.tag = document
+                    webView.loadDataWithBaseURL(null, document, "text/html", "UTF-8", null)
+                }
             },
         )
     } else {
@@ -342,24 +396,37 @@ private fun MessageBody(bodyHtml: String?, bodyPlain: String) {
     }
 }
 
-/** Forces remote email HTML to respect the app's current theme instead of showing through
- * with its own (usually white) background — email HTML almost never ships a dark-mode
- * variant. `!important` on `html`/`body` covers the common case where the message doesn't
- * set an inline background directly on `<body>`; deeply-nested elements with their own
- * explicit `background:white` divs are a known remaining limitation (no JS means no DOM
- * rewriting is possible here). */
-private fun wrapEmailHtml(bodyHtml: String, backgroundArgb: Int, textArgb: Int): String {
+/** Wraps remote email HTML so it fits a phone screen and follows the app's theme: a real
+ * viewport (without one the page is laid out ~980px wide and clipped), fixed-width
+ * tables/images capped to the screen, and the app's own background/text/link colors instead
+ * of the mail's implicit white page. `!important` on `html`/`body` covers the common case
+ * where the message doesn't set an inline background directly on `<body>`; elements with
+ * their own explicit backgrounds are handled by WebView's algorithmic darkening where
+ * available (see [MessageBody]) — which is also why this must NOT declare
+ * `color-scheme: light dark`: that tells WebView the page handles dark mode itself and
+ * switches the darkening off. */
+private fun wrapEmailHtml(bodyHtml: String, backgroundArgb: Int, textArgb: Int, linkArgb: Int): String {
     val backgroundHex = String.format("#%06X", 0xFFFFFF and backgroundArgb)
     val textHex = String.format("#%06X", 0xFFFFFF and textArgb)
+    val linkHex = String.format("#%06X", 0xFFFFFF and linkArgb)
     return """
         <html>
         <head>
-        <meta name="color-scheme" content="light dark">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
             html, body {
                 background: $backgroundHex !important;
                 color: $textHex !important;
+                margin: 0;
+                padding: 0;
+                overflow-wrap: anywhere;
             }
+            body { font-size: 15px; line-height: 1.5; }
+            a { color: $linkHex; }
+            img, video { max-width: 100% !important; height: auto !important; }
+            table { max-width: 100% !important; }
+            pre { white-space: pre-wrap; }
+            blockquote { margin: 8px 0 8px 12px; padding-left: 10px; border-left: 2px solid #88888866; }
         </style>
         </head>
         <body>$bodyHtml</body>
@@ -415,9 +482,14 @@ private fun PlainTextBody(bodyPlain: String) {
 }
 
 @Composable
-private fun AttachmentRow(attachment: AttachmentUi, onDownload: (onReady: (uri: String) -> Unit) -> Unit) {
+private fun AttachmentRow(
+    attachment: AttachmentUi,
+    onDownload: (onReady: (uri: String) -> Unit) -> Unit,
+    strings: Strings,
+) {
     val colors = AppColors
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val shape = RoundedCornerShape(12.dp)
 
     val saveLauncher = rememberLauncherForActivityResult(
@@ -425,8 +497,17 @@ private fun AttachmentRow(attachment: AttachmentUi, onDownload: (onReady: (uri: 
     ) { destinationUri ->
         val localUri = attachment.localUri ?: return@rememberLauncherForActivityResult
         if (destinationUri != null) {
-            context.contentResolver.openInputStream(android.net.Uri.parse(localUri))?.use { input ->
-                context.contentResolver.openOutputStream(destinationUri)?.use { out -> input.copyTo(out) }
+            // Off the main thread — attachments run to tens of MB.
+            scope.launch {
+                val saved = withContext(Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openInputStream(android.net.Uri.parse(localUri))?.use { input ->
+                            context.contentResolver.openOutputStream(destinationUri)?.use { out -> input.copyTo(out) }
+                        } != null
+                    }.getOrDefault(false)
+                }
+                val message = if (saved) strings.detailAttachmentSaved else strings.detailAttachmentDownloadFailed
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -459,6 +540,7 @@ private fun AttachmentRow(attachment: AttachmentUi, onDownload: (onReady: (uri: 
                 text = attachment.fileName,
                 style = MaterialTheme.typography.bodyMedium.copy(color = colors.textPrimary),
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = formatSize(attachment.sizeBytes),
@@ -470,7 +552,12 @@ private fun AttachmentRow(attachment: AttachmentUi, onDownload: (onReady: (uri: 
                 setDataAndType(android.net.Uri.parse(localUri), attachment.mimeType.ifBlank { "*/*" })
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            context.startActivity(intent)
+            // No installed app for this file type is an ordinary situation, not a crash.
+            try {
+                context.startActivity(intent)
+            } catch (e: ActivityNotFoundException) {
+                Toast.makeText(context, strings.detailNoAppForAttachment, Toast.LENGTH_SHORT).show()
+            }
         }
 
         if (attachment.isDownloading) {
@@ -488,7 +575,7 @@ private fun AttachmentRow(attachment: AttachmentUi, onDownload: (onReady: (uri: 
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
-                    contentDescription = "Open",
+                    contentDescription = strings.detailOpenAttachment,
                     tint = colors.textMuted,
                 )
             }
@@ -500,7 +587,7 @@ private fun AttachmentRow(attachment: AttachmentUi, onDownload: (onReady: (uri: 
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Download,
-                    contentDescription = "Save to device",
+                    contentDescription = strings.detailSaveAttachment,
                     tint = colors.textMuted,
                 )
             }

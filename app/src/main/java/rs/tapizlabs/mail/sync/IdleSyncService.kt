@@ -13,8 +13,6 @@ import androidx.core.app.NotificationCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
-import com.sun.mail.imap.IMAPFolder
-import com.sun.mail.imap.IMAPStore
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -22,13 +20,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import rs.tapizlabs.mail.MainActivity
 import rs.tapizlabs.mail.R
 import rs.tapizlabs.mail.data.local.dao.AccountDao
 import rs.tapizlabs.mail.data.local.dao.FolderDao
+import rs.tapizlabs.mail.data.local.entity.AccountEntity
 import rs.tapizlabs.mail.data.local.entity.FolderType
 import rs.tapizlabs.mail.data.repository.SyncRepository
 import rs.tapizlabs.mail.mail.ImapClient
@@ -44,10 +46,12 @@ import rs.tapizlabs.mail.security.CredentialStore
  * [SyncScheduler]) is short, connect-fetch-disconnect.
  *
  * Battery bound: the service only runs while the app is foregrounded or briefly
- * backgrounded — [backgroundLifecycleObserver] starts a [BACKGROUND_STOP_DELAY_MS] timer the
- * moment the app leaves the foreground and stops the service (and its IDLE sockets) if the
- * app hasn't come back by the time it fires. [SyncScheduler]'s periodic WorkManager job keeps
- * covering the account after that, so mail still arrives, just not instantly.
+ * backgrounded — `MainActivity` (re)starts it whenever the app is in the foreground and at
+ * least one account supports IDLE, and [backgroundLifecycleObserver] starts a
+ * [BACKGROUND_STOP_DELAY_MS] timer the moment the app leaves the foreground, stopping the
+ * service (and its IDLE sockets) if the app hasn't come back by the time it fires.
+ * [SyncScheduler]'s periodic WorkManager job keeps covering the account after that, so mail
+ * still arrives, just not instantly.
  */
 @AndroidEntryPoint
 class IdleSyncService : Service() {
@@ -59,8 +63,7 @@ class IdleSyncService : Service() {
     @Inject lateinit var syncRepository: SyncRepository
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val idleJobs = mutableListOf<Job>()
-    private val openStores = mutableListOf<IMAPStore>()
+    private var watchJob: Job? = null
     private var backgroundStopJob: Job? = null
 
     private val backgroundLifecycleObserver = object : DefaultLifecycleObserver {
@@ -68,6 +71,7 @@ class IdleSyncService : Service() {
             // App went to background: give it a grace window (e.g. quick app-switch back)
             // before tearing down the IDLE connections — avoids reconnect churn on every
             // brief backgrounding while still bounding worst-case background socket time.
+            backgroundStopJob?.cancel()
             backgroundStopJob = serviceScope.launch {
                 delay(BACKGROUND_STOP_DELAY_MS)
                 stopSelf()
@@ -83,55 +87,88 @@ class IdleSyncService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        // API 29+ requires the foreground service type at startForeground() call time too,
-        // not just declared in the manifest, or the system throws MissingForegroundServiceTypeException.
+        ProcessLifecycleOwner.get().lifecycle.addObserver(backgroundLifecycleObserver)
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Started by MainActivity each time the app comes to the foreground (see its
+        // STARTED-scoped collector), so this can run many times against one service instance.
+        if (!enterForeground()) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        if (watchJob == null) {
+            watchJob = serviceScope.launch { watchIdleAccounts() }
+        }
+        // NOT sticky: a sticky restart happens while the app is in the background, where
+        // Android 12+ refuses startForeground() (ForegroundServiceStartNotAllowedException)
+        // — a guaranteed crash for a service whose whole point is to exist only around
+        // foreground use. The periodic WorkManager/alarm sync is the durability net.
+        return START_NOT_STICKY
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    /** Android 15+ caps `dataSync` foreground services (6h per 24h) and requires the service
+     * to stop itself when the system calls this, or the app is crashed for it. */
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        stopSelf()
+    }
+
+    override fun onDestroy() {
+        ProcessLifecycleOwner.get().lifecycle.removeObserver(backgroundLifecycleObserver)
+        // Cancels every idle loop; each loop closes its own IMAP store off the main thread
+        // (see ImapClient.idleLoop) — closing sockets here would be network I/O on main.
+        serviceScope.cancel()
+        super.onDestroy()
+    }
+
+    /** API 29+ requires the foreground service type at startForeground() call time too, not
+     * just declared in the manifest. Returns false if the system refuses (service somehow
+     * started while the app isn't in the foreground) so the caller can bail out cleanly. */
+    private fun enterForeground(): Boolean = try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         } else {
             startForeground(NOTIFICATION_ID, buildNotification())
         }
-        ProcessLifecycleOwner.get().lifecycle.addObserver(backgroundLifecycleObserver)
-        serviceScope.launch { startIdleForEligibleAccounts() }
+        true
+    } catch (e: Exception) {
+        false
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // START_STICKY: if the system kills this process under memory pressure, it's fine
-        // (and expected) for it to restart later rather than guarantee redelivery — the
-        // periodic WorkManager sync is the durability net, this service is a best-effort
-        // latency improvement only.
-        return START_STICKY
-    }
-
-    override fun onBind(intent: Intent?): IBinder? = null
-
-    override fun onDestroy() {
-        ProcessLifecycleOwner.get().lifecycle.removeObserver(backgroundLifecycleObserver)
-        idleJobs.forEach { it.cancel() }
-        openStores.forEach { runCatching { it.close() } }
-        serviceScope.cancel()
-        super.onDestroy()
-    }
-
-    private suspend fun startIdleForEligibleAccounts() {
-        val accounts = accountDao.getActiveAccounts().first().filter { it.supportsIdle }
-        for (account in accounts) {
-            val password = credentialStore.getImapPassword(account.id) ?: continue
-            val store = runCatching { imapClient.connect(account, password) }.getOrNull() ?: continue
-            openStores.add(store)
-
-            val folders = folderDao.getFoldersForAccount(account.id).first()
-            val inboxFolder = folders.firstOrNull { it.type == FolderType.INBOX } ?: continue
-            val imapFolder = runCatching { store.getFolder(inboxFolder.remoteName) as IMAPFolder }
-                .getOrNull() ?: continue
-
-            // IDLE is only meaningful on the inbox for now — categorized/other folders still
-            // get picked up by the periodic WorkManager pass; watching every folder per
-            // account would multiply open sockets for little practical benefit here.
-            val job = imapClient.idle(serviceScope, store, imapFolder) {
-                serviceScope.launch { syncRepository.syncFolder(account.id, store, imapFolder) }
+    /** Keeps one IDLE loop per IDLE-capable active account, following the account list
+     * live: adding/editing/removing an account restarts the loops with the new set instead
+     * of requiring an app restart, and the service stops itself once none are left. */
+    private suspend fun watchIdleAccounts() {
+        accountDao.getActiveAccounts()
+            .map { accounts -> accounts.filter { it.supportsIdle } }
+            .distinctUntilChanged()
+            .collectLatest { accounts ->
+                if (accounts.isEmpty()) {
+                    stopSelf()
+                    return@collectLatest
+                }
+                coroutineScope {
+                    accounts.forEach { account -> launch { idleOnInbox(account) } }
+                }
             }
-            idleJobs.add(job)
-        }
+    }
+
+    /** IDLE is only meaningful on the inbox for now — categorized/other folders still get
+     * picked up by the periodic WorkManager pass; watching every folder per account would
+     * multiply open sockets for little practical benefit here. */
+    private suspend fun idleOnInbox(account: AccountEntity) {
+        val inboxName = folderDao.getFolderOnceByType(account.id, FolderType.INBOX)?.remoteName ?: "INBOX"
+        imapClient.idleLoop(
+            account = account,
+            password = { credentialStore.getImapPassword(account.id) },
+            folderName = inboxName,
+            // On its own short-lived connection (normal timeouts), not the IDLE one: a
+            // stalled fetch must fail fast rather than hang on the long IDLE read timeout
+            // while holding the account's sync lock.
+            onChange = { runCatching { syncRepository.syncInbox(account.id) } },
+        )
     }
 
     private fun createNotificationChannel() {

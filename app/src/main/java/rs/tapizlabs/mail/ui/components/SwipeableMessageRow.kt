@@ -44,6 +44,10 @@ fun SwipeableMessageRow(
     leftAction: SwipeAction,
     rightAction: SwipeAction,
     modifier: Modifier = Modifier,
+    isDraft: Boolean = false,
+    /** Replaces [rightAction]'s icon for views where a right swipe means something other
+     * than a configurable [SwipeAction] (Trash: restore). */
+    rightIconOverride: ImageVector? = null,
 ) {
     val colors = AppColors
 
@@ -83,7 +87,10 @@ fun SwipeableMessageRow(
                     .padding(horizontal = 24.dp),
                 contentAlignment = alignment,
             ) {
-                swipeActionIcon(activeAction)?.let { icon ->
+                val icon = rightIconOverride
+                    ?.takeIf { dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd }
+                    ?: swipeActionIcon(activeAction)
+                if (icon != null) {
                     Icon(imageVector = icon, contentDescription = null, tint = tint)
                 }
             }
@@ -94,6 +101,7 @@ fun SwipeableMessageRow(
             onClick = onClick,
             onToggleStar = onToggleStar,
             modifier = Modifier.background(colors.card),
+            isDraft = isDraft,
         )
     }
 }

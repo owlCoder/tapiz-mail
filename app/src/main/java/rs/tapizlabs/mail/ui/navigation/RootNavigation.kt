@@ -21,6 +21,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import rs.tapizlabs.mail.ui.account.AddAccountScreen
 import rs.tapizlabs.mail.ui.account.ChooseProviderScreen
+import rs.tapizlabs.mail.ui.account.MailProvider
 import rs.tapizlabs.mail.ui.components.GradientBackground
 import rs.tapizlabs.mail.ui.compose.ComposeScreen
 import rs.tapizlabs.mail.ui.detail.MailDetailScreen
@@ -141,7 +142,13 @@ fun RootNavigation(
         }
 
         composable(Routes.ONBOARDING) {
-            OnboardingScreen(onGetStarted = { navController.navigate(Routes.addAccount(firstRun = true)) })
+            OnboardingScreen(
+                onGetStarted = { navController.navigate(Routes.addAccount(firstRun = true)) },
+                // Straight to that provider's prefilled form — these used to land on the
+                // same provider chooser as "Get started", asking the question twice.
+                onGmail = { navController.navigate(Routes.addAccountDetails(MailProvider.GMAIL.name, firstRun = true)) },
+                onOutlook = { navController.navigate(Routes.addAccountDetails(MailProvider.OUTLOOK.name, firstRun = true)) },
+            )
         }
 
         composable(

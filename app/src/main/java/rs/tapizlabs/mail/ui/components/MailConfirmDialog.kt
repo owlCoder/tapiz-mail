@@ -10,8 +10,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import rs.tapizlabs.mail.ui.theme.AppColors
@@ -39,6 +40,7 @@ fun MailConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    confirmIcon: ImageVector = Icons.Outlined.DeleteForever,
 ) {
     val colors = AppColors
 
@@ -84,9 +86,10 @@ fun MailConfirmDialog(
             Spacer(Modifier.width(12.dp))
             MailPrimaryButton(
                 text = confirmLabel,
-                icon = Icons.Filled.CheckCircle,
+                icon = confirmIcon,
                 onClick = onConfirm,
                 modifier = Modifier.weight(1f),
+                containerColorOverride = colors.coral,
             )
         }
     }

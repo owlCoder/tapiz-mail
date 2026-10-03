@@ -3,7 +3,9 @@ package rs.tapizlabs.mail.sync
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkRequest
@@ -61,6 +63,16 @@ class SyncScheduler @Inject constructor(
         alarmScheduler.scheduleFor(account.id, account.syncIntervalMinutes)
     }
 
+    /** One-off sync as soon as the network constraint is met — the hand-off for an alarm-
+     * triggered sync that outlives its broadcast window (see [MailSyncAlarmReceiver]). */
+    fun syncNow(accountId: String) {
+        val request = OneTimeWorkRequestBuilder<MailSyncWorker>()
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+            .setInputData(workDataOf(MailSyncWorker.KEY_ACCOUNT_ID to accountId))
+            .build()
+        workManager.enqueueUniqueWork("$UNIQUE_NOW_WORK_PREFIX$accountId", ExistingWorkPolicy.KEEP, request)
+    }
+
     fun cancelFor(accountId: String) {
         workManager.cancelUniqueWork(uniqueWorkName(accountId))
         alarmScheduler.cancelFor(accountId)
@@ -74,6 +86,7 @@ class SyncScheduler @Inject constructor(
 
     companion object {
         private const val UNIQUE_WORK_PREFIX = "mail_sync_"
+        private const val UNIQUE_NOW_WORK_PREFIX = "mail_sync_now_"
         private const val TAG_PERIODIC_SYNC = "mail_periodic_sync"
     }
 }

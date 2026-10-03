@@ -35,11 +35,6 @@ fun AppLanguage.toLocale(): java.util.Locale = when (this) {
  * Deliberately NOT a data class with a huge primary constructor: a >255-register
  * constructor invocation compiles but crashes at runtime with a VerifyError (ART
  * DEX limit). `lateinit var` + `apply { }` blocks avoid that ceiling.
- *
- * NOTE: this is the first i18n pass for Tapiz Mail — only the onboarding screen
- * and the language-picker screen have been migrated so far. The rest of the app
- * (Inbox, Compose, Settings, account setup, etc.) still uses hardcoded English
- * literals and should migrate to this dictionary incrementally.
  */
 class Strings internal constructor() {
     // Onboarding
@@ -258,6 +253,59 @@ class Strings internal constructor() {
     /** `%s` placeholder for the version name — use [settingsAppVersion]. */
     lateinit var settingsAppVersionTemplate: String
     fun settingsAppVersion(versionName: String): String = settingsAppVersionTemplate.format(versionName)
+
+    // Shared message-list / sync feedback
+    /** Per-language pluralization for a message count (see [inboxAccountsSynced]). */
+    lateinit var inboxMessagesCount: (Int) -> String
+    lateinit var inboxSyncFailed: String
+    lateinit var inboxRetry: String
+    /** Prefix for the recipient line of outgoing mail (Sent/Drafts rows): "To ana@…". */
+    lateinit var messageToPrefix: String
+    lateinit var messageNoRecipient: String
+    /** `%d` placeholder for the message count — use [notificationNewMessages]. */
+    lateinit var notificationNewMessagesTemplate: String
+    fun notificationNewMessages(count: Int): String = notificationNewMessagesTemplate.format(count)
+
+    // Mail detail (attachments)
+    lateinit var detailNoAppForAttachment: String
+    lateinit var detailAttachmentDownloadFailed: String
+    lateinit var detailAttachmentSaved: String
+
+    // Compose (send feedback, reply/forward)
+    lateinit var composeReplyTitle: String
+    lateinit var composeForwardTitle: String
+    lateinit var composeSendFailed: String
+    /** `%s` placeholder for the offending address — use [composeInvalidRecipient]. */
+    lateinit var composeInvalidRecipientTemplate: String
+    fun composeInvalidRecipient(address: String): String = composeInvalidRecipientTemplate.format(address)
+    /** `%s` placeholder for the original sender — use [composeOriginalMessage]. */
+    lateinit var composeOriginalMessageTemplate: String
+    fun composeOriginalMessage(sender: String): String = composeOriginalMessageTemplate.format(sender)
+
+    // Account setup
+    lateinit var securityNone: String
+    lateinit var accountRemoveButton: String
+
+    // Shared actions (icon-only controls: labels for screen readers)
+    lateinit var commonBack: String
+    lateinit var commonClear: String
+    lateinit var actionStar: String
+    lateinit var actionUnstar: String
+    lateinit var composeSend: String
+    lateinit var composeAddAttachment: String
+    lateinit var composeTakePhoto: String
+    lateinit var composeAddImage: String
+    lateinit var composeRemoveAttachment: String
+    lateinit var detailOpenAttachment: String
+    lateinit var detailSaveAttachment: String
+
+    // Categories (settings)
+    lateinit var categoryAdd: String
+    lateinit var categoryEditorDeleteRule: String
+    lateinit var categoryDeleteTitle: String
+    /** `%s` placeholder for the category name — use [categoryDeleteMessage]. */
+    lateinit var categoryDeleteMessageTemplate: String
+    fun categoryDeleteMessage(name: String): String = categoryDeleteMessageTemplate.format(name)
 }
 
 val SrStrings = Strings().apply {
@@ -456,6 +504,53 @@ val SrStrings = Strings().apply {
     settingsAboutAuthor = "Autor"
     settingsCopyrightTemplate = "© %s Tapiz Labs. Sva prava zadržana."
     settingsAppVersionTemplate = "Verzija %s"
+
+    // Serbian count agreement: 1 poruka / 2-4 poruke / 5+ (and 11-14) poruka.
+    inboxMessagesCount = { count ->
+        val mod10 = count % 10
+        val mod100 = count % 100
+        val noun = when {
+            mod10 == 1 && mod100 != 11 -> "poruka"
+            mod10 in 2..4 && mod100 !in 12..14 -> "poruke"
+            else -> "poruka"
+        }
+        "$count $noun"
+    }
+    inboxSyncFailed = "Sinhronizacija nije uspela. Proveri internet konekciju."
+    inboxRetry = "Pokušaj ponovo"
+    messageToPrefix = "Za"
+    messageNoRecipient = "(bez primaoca)"
+    notificationNewMessagesTemplate = "Novih poruka: %d"
+
+    detailNoAppForAttachment = "Nema aplikacije koja može da otvori ovaj fajl"
+    detailAttachmentDownloadFailed = "Preuzimanje priloga nije uspelo"
+    detailAttachmentSaved = "Prilog je sačuvan"
+
+    composeReplyTitle = "Odgovor"
+    composeForwardTitle = "Prosleđivanje"
+    composeSendFailed = "Slanje nije uspelo. Proveri konekciju i pokušaj ponovo."
+    composeInvalidRecipientTemplate = "Neispravna email adresa: %s"
+    composeOriginalMessageTemplate = "---- Originalna poruka od %s ----"
+
+    securityNone = "Bez enkripcije"
+    accountRemoveButton = "Ukloni nalog"
+
+    commonBack = "Nazad"
+    commonClear = "Obriši unos"
+    actionStar = "Označi zvezdicom"
+    actionUnstar = "Ukloni zvezdicu"
+    composeSend = "Pošalji"
+    composeAddAttachment = "Dodaj prilog"
+    composeTakePhoto = "Slikaj kamerom"
+    composeAddImage = "Dodaj sliku"
+    composeRemoveAttachment = "Ukloni prilog"
+    detailOpenAttachment = "Otvori"
+    detailSaveAttachment = "Sačuvaj na uređaj"
+
+    categoryAdd = "Dodaj kategoriju"
+    categoryEditorDeleteRule = "Obriši pravilo"
+    categoryDeleteTitle = "Obriši kategoriju?"
+    categoryDeleteMessageTemplate = "Ovo briše kategoriju %s i njena pravila. Poruke se ne brišu."
 }
 
 val EnStrings = Strings().apply {
@@ -646,6 +741,43 @@ val EnStrings = Strings().apply {
     settingsAboutAuthor = "Author"
     settingsCopyrightTemplate = "© %s Tapiz Labs. All rights reserved."
     settingsAppVersionTemplate = "Version %s"
+
+    inboxMessagesCount = { count -> if (count == 1) "1 message" else "$count messages" }
+    inboxSyncFailed = "Sync failed. Check your internet connection."
+    inboxRetry = "Retry"
+    messageToPrefix = "To"
+    messageNoRecipient = "(no recipient)"
+    notificationNewMessagesTemplate = "%d new messages"
+
+    detailNoAppForAttachment = "No app can open this file"
+    detailAttachmentDownloadFailed = "Couldn't download the attachment"
+    detailAttachmentSaved = "Attachment saved"
+
+    composeReplyTitle = "Reply"
+    composeForwardTitle = "Forward"
+    composeSendFailed = "Couldn't send. Check your connection and try again."
+    composeInvalidRecipientTemplate = "Invalid email address: %s"
+    composeOriginalMessageTemplate = "---- Original message from %s ----"
+
+    securityNone = "None"
+    accountRemoveButton = "Remove account"
+
+    commonBack = "Back"
+    commonClear = "Clear"
+    actionStar = "Star"
+    actionUnstar = "Unstar"
+    composeSend = "Send"
+    composeAddAttachment = "Add attachment"
+    composeTakePhoto = "Take photo"
+    composeAddImage = "Add image"
+    composeRemoveAttachment = "Remove attachment"
+    detailOpenAttachment = "Open"
+    detailSaveAttachment = "Save to device"
+
+    categoryAdd = "Add category"
+    categoryEditorDeleteRule = "Delete rule"
+    categoryDeleteTitle = "Delete category?"
+    categoryDeleteMessageTemplate = "This deletes the category %s and its rules. Messages are not deleted."
 }
 
 val DeStrings = Strings().apply {
@@ -836,6 +968,43 @@ val DeStrings = Strings().apply {
     settingsAboutAuthor = "Autor"
     settingsCopyrightTemplate = "© %s Tapiz Labs. Alle Rechte vorbehalten."
     settingsAppVersionTemplate = "Version %s"
+
+    inboxMessagesCount = { count -> if (count == 1) "1 Nachricht" else "$count Nachrichten" }
+    inboxSyncFailed = "Synchronisierung fehlgeschlagen. Internetverbindung prüfen."
+    inboxRetry = "Erneut versuchen"
+    messageToPrefix = "An"
+    messageNoRecipient = "(kein Empfänger)"
+    notificationNewMessagesTemplate = "%d neue Nachrichten"
+
+    detailNoAppForAttachment = "Keine App kann diese Datei öffnen"
+    detailAttachmentDownloadFailed = "Anhang konnte nicht geladen werden"
+    detailAttachmentSaved = "Anhang gespeichert"
+
+    composeReplyTitle = "Antwort"
+    composeForwardTitle = "Weiterleiten"
+    composeSendFailed = "Senden fehlgeschlagen. Verbindung prüfen und erneut versuchen."
+    composeInvalidRecipientTemplate = "Ungültige E-Mail-Adresse: %s"
+    composeOriginalMessageTemplate = "---- Ursprüngliche Nachricht von %s ----"
+
+    securityNone = "Keine"
+    accountRemoveButton = "Konto entfernen"
+
+    commonBack = "Zurück"
+    commonClear = "Eingabe löschen"
+    actionStar = "Mit Stern markieren"
+    actionUnstar = "Stern entfernen"
+    composeSend = "Senden"
+    composeAddAttachment = "Anhang hinzufügen"
+    composeTakePhoto = "Foto aufnehmen"
+    composeAddImage = "Bild hinzufügen"
+    composeRemoveAttachment = "Anhang entfernen"
+    detailOpenAttachment = "Öffnen"
+    detailSaveAttachment = "Auf Gerät speichern"
+
+    categoryAdd = "Kategorie hinzufügen"
+    categoryEditorDeleteRule = "Regel löschen"
+    categoryDeleteTitle = "Kategorie löschen?"
+    categoryDeleteMessageTemplate = "Dies löscht die Kategorie %s und ihre Regeln. Nachrichten werden nicht gelöscht."
 }
 
 val EsStrings = Strings().apply {
@@ -1026,6 +1195,43 @@ val EsStrings = Strings().apply {
     settingsAboutAuthor = "Autor"
     settingsCopyrightTemplate = "© %s Tapiz Labs. Todos los derechos reservados."
     settingsAppVersionTemplate = "Versión %s"
+
+    inboxMessagesCount = { count -> if (count == 1) "1 mensaje" else "$count mensajes" }
+    inboxSyncFailed = "Error de sincronización. Comprueba tu conexión a internet."
+    inboxRetry = "Reintentar"
+    messageToPrefix = "Para"
+    messageNoRecipient = "(sin destinatario)"
+    notificationNewMessagesTemplate = "%d mensajes nuevos"
+
+    detailNoAppForAttachment = "Ninguna app puede abrir este archivo"
+    detailAttachmentDownloadFailed = "No se pudo descargar el adjunto"
+    detailAttachmentSaved = "Adjunto guardado"
+
+    composeReplyTitle = "Respuesta"
+    composeForwardTitle = "Reenviar"
+    composeSendFailed = "No se pudo enviar. Comprueba tu conexión e inténtalo de nuevo."
+    composeInvalidRecipientTemplate = "Dirección de correo no válida: %s"
+    composeOriginalMessageTemplate = "---- Mensaje original de %s ----"
+
+    securityNone = "Ninguna"
+    accountRemoveButton = "Eliminar cuenta"
+
+    commonBack = "Atrás"
+    commonClear = "Borrar texto"
+    actionStar = "Destacar"
+    actionUnstar = "Quitar destacado"
+    composeSend = "Enviar"
+    composeAddAttachment = "Adjuntar archivo"
+    composeTakePhoto = "Tomar foto"
+    composeAddImage = "Agregar imagen"
+    composeRemoveAttachment = "Quitar adjunto"
+    detailOpenAttachment = "Abrir"
+    detailSaveAttachment = "Guardar en el dispositivo"
+
+    categoryAdd = "Agregar categoría"
+    categoryEditorDeleteRule = "Eliminar regla"
+    categoryDeleteTitle = "¿Eliminar categoría?"
+    categoryDeleteMessageTemplate = "Esto elimina la categoría %s y sus reglas. Los mensajes no se eliminan."
 }
 
 val FrStrings = Strings().apply {
@@ -1216,6 +1422,43 @@ val FrStrings = Strings().apply {
     settingsAboutAuthor = "Auteur"
     settingsCopyrightTemplate = "© %s Tapiz Labs. Tous droits réservés."
     settingsAppVersionTemplate = "Version %s"
+
+    inboxMessagesCount = { count -> if (count <= 1) "$count message" else "$count messages" }
+    inboxSyncFailed = "Échec de la synchronisation. Vérifiez votre connexion internet."
+    inboxRetry = "Réessayer"
+    messageToPrefix = "À"
+    messageNoRecipient = "(sans destinataire)"
+    notificationNewMessagesTemplate = "%d nouveaux messages"
+
+    detailNoAppForAttachment = "Aucune application ne peut ouvrir ce fichier"
+    detailAttachmentDownloadFailed = "Impossible de télécharger la pièce jointe"
+    detailAttachmentSaved = "Pièce jointe enregistrée"
+
+    composeReplyTitle = "Réponse"
+    composeForwardTitle = "Transfert"
+    composeSendFailed = "Échec de l'envoi. Vérifiez votre connexion et réessayez."
+    composeInvalidRecipientTemplate = "Adresse e-mail invalide : %s"
+    composeOriginalMessageTemplate = "---- Message d'origine de %s ----"
+
+    securityNone = "Aucune"
+    accountRemoveButton = "Supprimer le compte"
+
+    commonBack = "Retour"
+    commonClear = "Effacer"
+    actionStar = "Marquer d'une étoile"
+    actionUnstar = "Retirer l'étoile"
+    composeSend = "Envoyer"
+    composeAddAttachment = "Ajouter une pièce jointe"
+    composeTakePhoto = "Prendre une photo"
+    composeAddImage = "Ajouter une image"
+    composeRemoveAttachment = "Retirer la pièce jointe"
+    detailOpenAttachment = "Ouvrir"
+    detailSaveAttachment = "Enregistrer sur l'appareil"
+
+    categoryAdd = "Ajouter une catégorie"
+    categoryEditorDeleteRule = "Supprimer la règle"
+    categoryDeleteTitle = "Supprimer la catégorie ?"
+    categoryDeleteMessageTemplate = "Cela supprime la catégorie %s et ses règles. Les messages ne sont pas supprimés."
 }
 
 fun stringsFor(language: AppLanguage): Strings = when (language) {

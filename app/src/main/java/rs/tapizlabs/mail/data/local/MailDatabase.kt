@@ -37,7 +37,7 @@ import rs.tapizlabs.mail.data.local.entity.SwipeActionConfigEntity
         CategoryRuleEntity::class,
         SwipeActionConfigEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -71,6 +71,35 @@ abstract class MailDatabase : RoomDatabase() {
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE attachments ADD COLUMN partIndex INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        /** Adds the list/sync lookup indices on `messages`, and repairs rows left behind by
+         * the old "move to Trash" path: when the account had a server-side Trash mailbox, the
+         * message was filed under that real folder's id instead of the local-only
+         * `local-trash-<accountId>` pseudo-folder, so it showed up in neither Trash nor (after
+         * this version's stricter Inbox query) anywhere else. Those rows are identified by
+         * having an `originFolderId` while sitting in a real TRASH-typed folder. */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_messages_accountId_sentAt` ON `messages` (`accountId`, `sentAt`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_messages_folderId_uid` ON `messages` (`folderId`, `uid`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_messages_originFolderId` ON `messages` (`originFolderId`)")
+                db.execSQL(
+                    """
+                    INSERT OR IGNORE INTO folders (id, accountId, remoteName, displayName, type, unreadCount)
+                    SELECT DISTINCT 'local-trash-' || m.accountId, m.accountId, 'Trash', 'Trash', 'TRASH', 0
+                    FROM messages m INNER JOIN folders f ON m.folderId = f.id
+                    WHERE m.originFolderId IS NOT NULL AND f.type = 'TRASH' AND f.id NOT LIKE 'local-%'
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    UPDATE messages SET folderId = 'local-trash-' || accountId
+                    WHERE originFolderId IS NOT NULL
+                      AND folderId IN (SELECT id FROM folders WHERE type = 'TRASH' AND id NOT LIKE 'local-%')
+                    """.trimIndent(),
+                )
             }
         }
     }

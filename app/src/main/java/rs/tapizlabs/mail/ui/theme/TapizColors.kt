@@ -17,6 +17,8 @@ data class TapizColors(
     val inputBackground: Color,
     val stroke: Color,
     val shadow: Color,
+    /** Dim layer behind overlays (`MailSheet`, Search) — one value so they read as one system. */
+    val scrim: Color,
     val primary: Color,
     val primaryBright: Color,
     val onPrimary: Color,
@@ -153,9 +155,13 @@ fun tapizColors(skin: MailSkin, dark: Boolean): TapizColors {
         inputBackground = r.ink300,
         stroke = r.border,
         shadow = if (dark) Color(0x66000000) else Color(0x1E1E145A),
+        scrim = Color(0x52000000),
         primary = if (dark) r.primary300 else r.primary500,
         primaryBright = r.primary300,
-        onPrimary = if (dark) Color(0xFFFFFFFF) else Color(0xFFFFFFFF),
+        // Dark mode's primary is the LIGHT end of the ramp (primary300), so content on it
+        // must be dark ink — white text on it measured ~2:1 contrast. Light mode's primary
+        // is the dark primary500, where white is correct.
+        onPrimary = if (dark) r.ink100 else Color(0xFFFFFFFF),
         accentSoft = if (dark) r.primary300.copy(alpha = 0.12f) else r.ink300,
         signal = r.signal400,
         coral = if (dark) Color(0xFFE0655A) else Color(0xFFDC2626),

@@ -29,6 +29,9 @@ import rs.tapizlabs.mail.ui.i18n.AppLanguage
 import rs.tapizlabs.mail.ui.theme.MailSkin
 import rs.tapizlabs.mail.ui.theme.ThemePref
 
+/** A rule entered for a category that hasn't been saved yet (see [SettingsViewModel.saveCategory]). */
+data class PendingRule(val field: RuleMatchField, val type: RuleMatchType, val value: String)
+
 data class SettingsUiState(
     val accounts: List<AccountEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
@@ -140,16 +143,28 @@ class SettingsViewModel @Inject constructor(
 
     fun observeRulesForCategory(categoryId: String) = accountRepository.observeRulesForCategory(categoryId)
 
-    fun saveCategory(name: String, existingId: String?, accountId: String?) {
+    /** [newRules] are rules added in the editor before a brand-new category had an id to
+     * attach them to — saved together with it here. */
+    fun saveCategory(name: String, existingId: String?, accountId: String?, newRules: List<PendingRule> = emptyList()) {
         viewModelScope.launch {
-            accountRepository.saveCategory(
-                CategoryEntity(
-                    id = existingId ?: UUID.randomUUID().toString(),
+            val categoryId = existingId ?: UUID.randomUUID().toString()
+            accountRepository.saveCategoryWithRules(
+                category = CategoryEntity(
+                    id = categoryId,
                     accountId = accountId,
-                    name = name,
+                    name = name.trim(),
                     colorIndex = (existingId?.hashCode() ?: name.hashCode()).let { kotlin.math.abs(it) % 6 },
                     isSystemDefault = false,
                 ),
+                rules = newRules.map { rule ->
+                    CategoryRuleEntity(
+                        id = UUID.randomUUID().toString(),
+                        categoryId = categoryId,
+                        matchField = rule.field,
+                        matchType = rule.type,
+                        matchValue = rule.value,
+                    )
+                },
             )
         }
     }
