@@ -4,6 +4,11 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Build
 import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebChromeClient
+import android.os.Message
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -45,6 +50,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,99 +97,126 @@ fun MailDetailScreen(
     val strings = LocalStrings.current
     val context = LocalContext.current
 
-    Scaffold(
-        modifier = modifier,
-        containerColor = colors.canvasTop,
-        bottomBar = {
-            if (!uiState.notFound) {
-                DetailBottomBar(
-                    onReply = { onReply(uiState.messageId) },
-                    onForward = { onForward(uiState.messageId) },
-                    strings = strings,
-                )
-            }
-        },
-    ) { padding ->
-        if (uiState.notFound) {
-            Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-                DetailActionBar(onBack = onBack, strings = strings)
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = strings.detailMessageNotFound,
-                        style = MaterialTheme.typography.bodyMedium.copy(color = colors.textMuted),
+    var pendingLink by remember(uiState.messageId) { mutableStateOf<String?>(null) }
+    val requestOpenLink: (String) -> Unit = { raw ->
+        val target = EmailLinks.normalize(raw)
+        if (target != null) pendingLink = target
+        else Toast.makeText(context, strings.detailLinkUnsupported, Toast.LENGTH_SHORT).show()
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = colors.canvasTop,
+            bottomBar = {
+                if (!uiState.notFound) {
+                    DetailBottomBar(
+                        onReply = { onReply(uiState.messageId) },
+                        onForward = { onForward(uiState.messageId) },
+                        strings = strings,
                     )
                 }
+            },
+        ) { padding ->
+            if (uiState.notFound) {
+                Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+                    DetailActionBar(onBack = onBack, strings = strings)
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = strings.detailMessageNotFound,
+                            style = MaterialTheme.typography.bodyMedium.copy(color = colors.textMuted),
+                        )
+                    }
+                }
+                return@Scaffold
             }
-            return@Scaffold
-        }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState()),
-        ) {
-            DetailActionBar(
-                onBack = onBack,
-                onDelete = { viewModel.delete(onDeleted = onBack) },
-                onMarkUnread = { viewModel.markUnread(); onBack() },
-                strings = strings,
-            )
-
-            Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                MessageHeader(
-                    fromName = uiState.fromName,
-                    fromAddress = uiState.fromAddress,
-                    toAddresses = uiState.toAddresses,
-                    sentAt = uiState.sentAt,
-                    isStarred = uiState.isStarred,
-                    onToggleStar = { viewModel.toggleStar(uiState.isStarred) },
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                DetailActionBar(
+                    onBack = onBack,
+                    onDelete = { viewModel.delete(onDeleted = onBack) },
+                    onMarkUnread = { viewModel.markUnread(); onBack() },
                     strings = strings,
                 )
 
-                Spacer(Modifier.height(16.dp))
+                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                    MessageHeader(
+                        fromName = uiState.fromName,
+                        fromAddress = uiState.fromAddress,
+                        toAddresses = uiState.toAddresses,
+                        sentAt = uiState.sentAt,
+                        isStarred = uiState.isStarred,
+                        onToggleStar = { viewModel.toggleStar(uiState.isStarred) },
+                        strings = strings,
+                    )
 
-                Text(
-                    text = uiState.subject.ifBlank { strings.detailNoSubject },
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                    ),
-                )
+                    Spacer(Modifier.height(16.dp))
 
-                Spacer(Modifier.height(16.dp))
-
-                MessageBody(bodyHtml = uiState.bodyHtml, bodyPlain = uiState.bodyPlain)
-
-                if (uiState.attachments.isNotEmpty()) {
-                    Spacer(Modifier.height(20.dp))
                     Text(
-                        text = strings.detailAttachmentsCount(uiState.attachments.size),
-                        style = MaterialTheme.typography.titleSmall.copy(
+                        text = uiState.subject.ifBlank { strings.detailNoSubject },
+                        style = MaterialTheme.typography.titleLarge.copy(
                             color = colors.textPrimary,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Bold,
                         ),
                     )
-                    Spacer(Modifier.height(8.dp))
-                    uiState.attachments.forEach { attachment ->
-                        AttachmentRow(
-                            attachment = attachment,
-                            onDownload = { onReady ->
-                                viewModel.downloadAttachment(
-                                    attachmentId = attachment.id,
-                                    onReady = onReady,
-                                    onFailed = {
-                                        Toast.makeText(context, strings.detailAttachmentDownloadFailed, Toast.LENGTH_SHORT).show()
-                                    },
-                                )
-                            },
-                            strings = strings,
+
+                    Spacer(Modifier.height(16.dp))
+
+                    MessageBody(bodyHtml = uiState.bodyHtml, bodyPlain = uiState.bodyPlain, onLinkClick = requestOpenLink)
+
+                    if (uiState.attachments.isNotEmpty()) {
+                        Spacer(Modifier.height(20.dp))
+                        Text(
+                            text = strings.detailAttachmentsCount(uiState.attachments.size),
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                color = colors.textPrimary,
+                                fontWeight = FontWeight.SemiBold,
+                            ),
                         )
                         Spacer(Modifier.height(8.dp))
+                        uiState.attachments.forEach { attachment ->
+                            AttachmentRow(
+                                attachment = attachment,
+                                onDownload = { onReady ->
+                                    viewModel.downloadAttachment(
+                                        attachmentId = attachment.id,
+                                        onReady = onReady,
+                                        onFailed = {
+                                            Toast.makeText(context, strings.detailAttachmentDownloadFailed, Toast.LENGTH_SHORT).show()
+                                        },
+                                    )
+                                },
+                                strings = strings,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                        }
                     }
                 }
             }
         }
+        OpenEmailLinkSheet(
+            target = pendingLink,
+            onDismiss = { pendingLink = null },
+            onConfirm = {
+                val target = pendingLink?.let(EmailLinks::normalize)
+                pendingLink = null
+                if (target != null) {
+                    try {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(target)).apply {
+                            addCategory(Intent.CATEGORY_BROWSABLE)
+                        })
+                    } catch (_: ActivityNotFoundException) {
+                        Toast.makeText(context, strings.detailLinkOpenFailed, Toast.LENGTH_SHORT).show()
+                    } catch (_: SecurityException) {
+                        Toast.makeText(context, strings.detailLinkOpenFailed, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+        )
     }
 }
 
@@ -352,9 +387,10 @@ private fun MessageHeader(
 }
 
 @Composable
-private fun MessageBody(bodyHtml: String?, bodyPlain: String) {
+private fun MessageBody(bodyHtml: String?, bodyPlain: String, onLinkClick: (String) -> Unit) {
+    val latestOnLinkClick = rememberUpdatedState(onLinkClick)
     val colors = AppColors
-    if (bodyHtml != null) {
+    if (!bodyHtml.isNullOrBlank()) {
         val backgroundArgb = colors.canvasTop.toArgb()
         val textArgb = colors.textPrimary.toArgb()
         val linkArgb = colors.primary.toArgb()
@@ -370,12 +406,38 @@ private fun MessageBody(bodyHtml: String?, bodyPlain: String) {
                     settings.javaScriptEnabled = false
                     settings.allowFileAccess = false
                     settings.allowContentAccess = false
+                    settings.javaScriptCanOpenWindowsAutomatically = false
+                    settings.setSupportMultipleWindows(true)
+                    webViewClient = object : WebViewClient() {
+                        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                            if (request.isForMainFrame && request.hasGesture()) {
+                                latestOnLinkClick.value(request.url.toString())
+                            }
+                            // Never replace the message with a remote page, including redirects.
+                            return true
+                        }
+                    }
+                    webChromeClient = object : WebChromeClient() {
+                        override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message): Boolean {
+                            // target=_blank links must use the same confirmation as normal links.
+                            if (isUserGesture) view.hitTestResult.extra?.let { latestOnLinkClick.value(it) }
+                            return false
+                        }
+                    }
+                    // Prevent WebView's native link context menu from opening a link directly.
+                    setOnLongClickListener {
+                        hitTestResult.type == WebView.HitTestResult.SRC_ANCHOR_TYPE ||
+                            hitTestResult.type == WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE ||
+                            hitTestResult.type == WebView.HitTestResult.EMAIL_TYPE
+                    }
                     // The page scrolls with the surrounding Column; the WebView itself only
                     // ever needs to pan sideways for a layout that can't be narrowed.
                     isVerticalScrollBarEnabled = false
                     setBackgroundColor(backgroundArgb)
                 }
             },
+            onReset = null,
+            onRelease = { webView -> webView.stopLoading(); webView.destroy() },
             update = { webView ->
                 webView.setBackgroundColor(backgroundArgb)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -392,7 +454,7 @@ private fun MessageBody(bodyHtml: String?, bodyPlain: String) {
             },
         )
     } else {
-        PlainTextBody(bodyPlain)
+        PlainTextBody(bodyPlain, onLinkClick)
     }
 }
 
@@ -439,7 +501,7 @@ private fun wrapEmailHtml(bodyHtml: String, backgroundArgb: Int, textArgb: Int, 
  * wall of text once a reply chain has a few levels of quoting. Groups consecutive quoted
  * lines into a single block rather than drawing a rule per line. */
 @Composable
-private fun PlainTextBody(bodyPlain: String) {
+private fun PlainTextBody(bodyPlain: String, onLinkClick: (String) -> Unit) {
     val colors = AppColors
     val lines = bodyPlain.lines()
     var index = 0
@@ -465,13 +527,15 @@ private fun PlainTextBody(bodyPlain: String) {
                             .background(colors.stroke),
                     )
                     Spacer(Modifier.width(10.dp))
-                    Text(
+                    LinkedMessageText(
+                        onLinkClick = onLinkClick,
                         text = quoteLines.joinToString("\n"),
                         style = MaterialTheme.typography.bodySmall.copy(color = colors.textMuted),
                     )
                 }
             } else {
-                Text(
+                LinkedMessageText(
+                    onLinkClick = onLinkClick,
                     text = line,
                     style = MaterialTheme.typography.bodyMedium.copy(color = colors.textPrimary),
                 )
