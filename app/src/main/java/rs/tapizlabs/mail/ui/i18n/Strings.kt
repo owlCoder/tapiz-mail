@@ -153,6 +153,11 @@ class Strings internal constructor() {
     fun searchResultsCount(count: Int): String = searchResultsCountTemplate.format(count)
 
     // Mail detail
+    lateinit var detailOpenLinkTitle: String
+    lateinit var detailOpenLinkMessage: String
+    lateinit var detailOpenLink: String
+    lateinit var detailLinkUnsupported: String
+    lateinit var detailLinkOpenFailed: String
     lateinit var detailReply: String
     lateinit var detailForward: String
     lateinit var detailMessageNotFound: String
@@ -309,6 +314,11 @@ class Strings internal constructor() {
 }
 
 val SrStrings = Strings().apply {
+    detailOpenLinkTitle = "Otvoriti link?"
+    detailOpenLinkMessage = "Ovaj link će se otvoriti u drugoj aplikaciji. Proveri odredišnu adresu pre otvaranja."
+    detailOpenLink = "Otvori"
+    detailLinkUnsupported = "Ovaj link nije podržan."
+    detailLinkOpenFailed = "Nije moguće otvoriti ovaj link."
     onboardingHeadline = "Sva tvoja pošta,\njedno prijemno sanduče."
     onboardingSubtext = "Poveži Gmail, Outlook ili bilo koji IMAP nalog i dobij jedno " +
         "uredno, kategorisano prijemno sanduče, sinhronizovano u pozadini, po tvojim uslovima."
@@ -554,6 +564,11 @@ val SrStrings = Strings().apply {
 }
 
 val EnStrings = Strings().apply {
+    detailOpenLinkTitle = "Open link?"
+    detailOpenLinkMessage = "This link will open in another app. Check the destination address before opening."
+    detailOpenLink = "Open"
+    detailLinkUnsupported = "This link is not supported."
+    detailLinkOpenFailed = "Unable to open this link."
     onboardingHeadline = "All your mail,\none inbox."
     onboardingSubtext = "Connect Gmail, Outlook, or any IMAP account and get one clean, " +
         "categorized inbox, synced in the background, on your terms."
@@ -781,6 +796,11 @@ val EnStrings = Strings().apply {
 }
 
 val DeStrings = Strings().apply {
+    detailOpenLinkTitle = "Link öffnen?"
+    detailOpenLinkMessage = "Dieser Link wird in einer anderen App geöffnet. Prüfe vorher die Zieladresse."
+    detailOpenLink = "Öffnen"
+    detailLinkUnsupported = "Dieser Link wird nicht unterstützt."
+    detailLinkOpenFailed = "Dieser Link kann nicht geöffnet werden."
     onboardingHeadline = "Deine gesamte Post,\nein Posteingang."
     onboardingSubtext = "Verbinde Gmail, Outlook oder ein beliebiges IMAP-Konto und erhalte " +
         "einen übersichtlichen, kategorisierten Posteingang, im Hintergrund synchronisiert, ganz nach deinen Wünschen."
@@ -1008,6 +1028,11 @@ val DeStrings = Strings().apply {
 }
 
 val EsStrings = Strings().apply {
+    detailOpenLinkTitle = "¿Abrir enlace?"
+    detailOpenLinkMessage = "Este enlace se abrirá en otra aplicación. Revisa la dirección de destino antes de abrirlo."
+    detailOpenLink = "Abrir"
+    detailLinkUnsupported = "Este enlace no es compatible."
+    detailLinkOpenFailed = "No se pudo abrir este enlace."
     onboardingHeadline = "Todo tu correo,\nuna sola bandeja."
     onboardingSubtext = "Conecta Gmail, Outlook o cualquier cuenta IMAP y obtén una bandeja " +
         "de entrada limpia y organizada, sincronizada en segundo plano, a tu manera."
@@ -1235,6 +1260,11 @@ val EsStrings = Strings().apply {
 }
 
 val FrStrings = Strings().apply {
+    detailOpenLinkTitle = "Ouvrir le lien ?"
+    detailOpenLinkMessage = "Ce lien sera ouvert dans une autre application. Vérifie l’adresse de destination avant de l’ouvrir."
+    detailOpenLink = "Ouvrir"
+    detailLinkUnsupported = "Ce lien n’est pas pris en charge."
+    detailLinkOpenFailed = "Impossible d’ouvrir ce lien."
     onboardingHeadline = "Tout ton courrier,\nune seule boîte de réception."
     onboardingSubtext = "Connecte Gmail, Outlook ou n'importe quel compte IMAP et profite d'une " +
         "boîte de réception claire et organisée, synchronisée en arrière-plan, à ta façon."
